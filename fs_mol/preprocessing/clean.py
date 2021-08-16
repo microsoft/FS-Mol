@@ -26,7 +26,7 @@ import logging
 import pandas as pd
 import numpy as np
 from glob import glob
-from typing import List
+from typing import List, Dict, Any, Tuple
 from multiprocessing import cpu_count
 from multiprocessing.pool import Pool
 
@@ -41,6 +41,19 @@ from preprocessing.utils.cleaning_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+class CleaningFailedException(Exception):
+    def __init__(
+        self,
+        assay: str,
+    ):
+        super().__init__()
+        self.assay = assay
+
+    def __str__(self):
+        return (
+            f"Full cleaning of assay {self.assay} failed. \n"
+        )
 
 
 def select_assays(x: pd.DataFrame, **kwargs) -> pd.DataFrame:
@@ -248,12 +261,88 @@ def get_argparser():
 
     return parser
 
+def clean_assay(df: pd.DataFrame, basepath: str, assay: str, assay_file: str) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+
+    # remove index if it was saved with this file (back compatible)
+    if "Unnamed: 0" in df.columns:
+        df.drop(columns=["Unnamed: 0"], inplace=True)
+
+    original_size = len(df)
+
+    failed = False
+    # go through the cleaning steps
+    for step, clean_func in CLEANING_STEPS.items():
+        if failed:
+            break
+        else:
+            if step != 0:
+                tmp_dir = os.path.join(basepath, f"cleaned_pass_{step-1}/")
+                os.makedirs(tmp_dir, exist_ok=True)
+            try:
+                logger.info(f"Processing {assay} step {step}.")
+                df_copy = df.copy()
+                df = clean_func(df, **DEFAULT_CLEANING)
+
+                if df is None or len(df) == 0:
+                    logger.warning(
+                        f"Assay {assay} was empty post cleaning, saving intermediate, not passing to next step."
+                    )
+                    # do not save back to raw/, step must be 1 or greater to save intermediate.
+                    if step != 0:
+                        df_copy.to_csv(
+                            os.path.join(tmp_dir, os.path.basename(assay_file)),
+                            index=False,
+                        )
+                    failed = True
+            except Exception as e:
+                df = None
+                logger.warning(f"Failed cleaning step {step} on {assay} : {e}")
+                failed = True
+                        
+    try: 
+        target_id = (
+                        df.iloc[0]["target_id"]
+                        if "target_id" in df.columns
+                        else None
+                    )
+
+        organism = (
+            None
+            if df.iloc[0]["assay_organism"] == "nan"
+            else df.iloc[0]["assay_organism"]
+        )
+        assay_dict = {
+                        "chembl_id": assay,
+                        "target_id": target_id,
+                        "assay_type": df.iloc[0]["assay_type"],
+                        "assay_organism": organism,
+                        "raw_size": original_size,
+                        "cleaned_size": len(df),
+                        "cleaning_failed": str(failed),
+                        "cleaning_size_delta": original_size - len(df),
+                        "num_pos": df["activity"].sum(),
+                        "percentage_pos": "percentage_pos": df["activity"].sum()
+                                * 100
+                                / len(df),
+                        "max_mol_weight": "max_mol_weight": df.iloc[0][
+                                    "max_molecular_weight"
+                                ],
+                        "threshold": df.iloc[0]["threshold"],
+                        "max_num_atoms": df.iloc[0]["max_num_atoms"],
+                        "confidence_score": df.iloc[0]["confidence_score"],
+                        "standard_units": df.iloc[0]["standard_units"],
+                    }
+    except Exception as e:
+        raise CleaningFailedException(assay)
+
+    return df, assay_dict
+
+
 
 def process_all_assays(
     files_to_process: List[str],
     output_dir: str,
     basepath: str,
-    stop_step: int,
 ) -> None:
 
     summary_file = os.path.join(output_dir, "summary.csv")
@@ -286,128 +375,22 @@ def process_all_assays(
                 df = pd.read_csv(assay_file)
                 assay = os.path.basename(assay_file).split(".")[0]
                 logger.info(f"Processing {i}: {assay}.")
-                original_size = len(df)
             except Exception as e:
                 logger.warning(f"failed to load assay: {e}")
                 continue
 
-            # remove index if it was saved with this file (back compatible)
-            if "Unnamed: 0" in df.columns:
-                df.drop(columns=["Unnamed: 0"], inplace=True)
+            try: 
+                cleaned_df, summary_dict = clean_assay(df)
+                logger.info(f"Assay {assay} saving to output directory.")
+                cleaned_df.to_csv(
+                    os.path.join(output_dir, os.path.basename(assay_file)),
+                    index=False,
+                )
+                csv_writer.writerow(summary_dict)
+            except CleaningFailedException as e:
+                continue
 
-            failed = False
-            # go through the cleaning steps
-            for step, clean_func in CLEANING_STEPS.items():
-                if failed:
-                    break
-                else:
-                    if step != 0:
-                        tmp_dir = os.path.join(basepath, f"cleaned_pass_{step-1}/")
-                        os.makedirs(tmp_dir, exist_ok=True)
-                    try:
-                        logger.info(f"Processing {assay} step {step}.")
-                        df_copy = df.copy()
-                        df = clean_func(df, **DEFAULT_CLEANING)
-                    except Exception as e:
-                        df = None
-                        logger.warning(f"Failed cleaning step {step} on {assay} : {e}")
-
-                    if df is None or len(df) == 0:
-                        failed = True
-                        logger.warning(
-                            f"Assay {assay} was empty post cleaning, saving intermediate, not passing to next step."
-                        )
-                        # do not save back to raw/, step must be 1 or greater for this saving.
-                        if step != 0:
-                            df_copy.to_csv(
-                                os.path.join(tmp_dir, os.path.basename(assay_file)),
-                                index=False,
-                            )
-
-                    # save out at end with summary
-                    if step == stop_step:
-                        if not failed:
-
-                            logger.info(f"Assay {assay} saving to output directory.")
-                            df.to_csv(
-                                os.path.join(output_dir, os.path.basename(assay_file)),
-                                index=False,
-                            )
-
-                            target_id = (
-                                df.iloc[0]["target_id"]
-                                if "target_id" in df.columns
-                                else None
-                            )
-
-                            organism = (
-                                None
-                                if df.iloc[0]["assay_organism"] == "nan"
-                                else df.iloc[0]["assay_organism"]
-                            )
-
-                            assay_dict = {
-                                "chembl_id": assay,
-                                "target_id": target_id,
-                                "assay_type": df.iloc[0]["assay_type"],
-                                "assay_organism": organism,
-                                "raw_size": original_size,
-                                "cleaned_size": len(df),
-                                "cleaning_failed": str(failed),
-                                "cleaning_size_delta": original_size - len(df),
-                                "num_pos": float("NaN"),
-                                "percentage_pos": float("NaN"),
-                                "max_mol_weight": float("NaN"),
-                                "threshold": float("NaN"),
-                                "max_num_atoms": float("NaN"),
-                                "confidence_score": df.iloc[0]["confidence_score"],
-                                "standard_units": df.iloc[0]["standard_units"],
-                            }
-                            if step >= 1:
-                                # we now have max molecule sizes
-                                assay_dict.update(
-                                    {
-                                        "max_num_atoms": df.iloc[0]["max_num_atoms"],
-                                        "max_mol_weight": df.iloc[0][
-                                            "max_molecular_weight"
-                                        ],
-                                    }
-                                )
-                            if step >= 2:
-                                # we have activity values
-                                assay_dict.update(
-                                    {
-                                        "threshold": df.iloc[0]["threshold"],
-                                        "num_pos": df["activity"].sum(),
-                                        "percentage_pos": df["activity"].sum()
-                                        * 100
-                                        / len(df),
-                                    }
-                                )
-                        else:
-                            if df is None:
-                                df_size = float("NaN")
-                            else:
-                                df_size = len(df)
-                            target_id = None
-                            assay_type = None
-                            assay_dict = {
-                                "chembl_id": assay,
-                                "target_id": target_id,
-                                "assay_type": assay_type,
-                                "assay_organism": None,
-                                "raw_size": original_size,
-                                "cleaned_size": 0,
-                                "cleaning_failed": str(failed),
-                                "cleaning_size_delta": df_size,
-                                "num_pos": float("NaN"),
-                                "percentage_pos": float("NaN"),
-                                "confidence_score": None,
-                                "standard_units": None,
-                                "max_num_atoms": float("NaN"),
-                                "max_mol_weight": float("NaN"),
-                            }
-                        csv_writer.writerow(assay_dict)
+        
 
 
 def get_files_to_process(input_dir: str, output_dir: str) -> List[str]:
