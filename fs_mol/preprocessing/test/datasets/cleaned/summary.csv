@@ -1,0 +1,2 @@
+chembl_id,target_id,assay_type,assay_organism,raw_size,cleaned_size,cleaning_failed,cleaning_size_delta,num_pos,percentage_pos,max_mol_weight,threshold,max_num_atoms,confidence_score,standard_units
+CHEMBL1001235,,F,Homo sapiens,51,21,False,30,10.0,47.61904761904762,574.317,4.609064892896621,35,1,nM

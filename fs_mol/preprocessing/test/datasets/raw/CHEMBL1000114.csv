@@ -1,0 +1,37 @@
+smiles,pchembl,standard_value,standard_units,standard_relation,activity_comment,chembl_id,assay_type,assay_organism,assay_cell_type,assay_tissue,confidence_score
+C[C@@H]1OC(=O)C[C@H](O)C[C@H](O)CC[C@@H](O)[C@H](O)C[C@H](O)C[C@]2(O)C[C@H](O)[C@@H](C(=O)O)[C@H](C[C@@H](O[C@@H]3O[C@H](C)[C@@H](O)[C@H](N)[C@@H]3O)/C=C/C=C/C=C/C=C/C=C/C=C/C=C/[C@H](C)[C@@H](O)[C@H]1C)O2,,0.06,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O[C@]12C=C(c3nccc4c3[nH]c3ccccc34)[C@@H]3CCN(CCCC/C=C\CC1)C[C@@]31C[C@@H]3/C=C\CCCCN3[C@@H]21,,0.9,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+OC1=C[C@@]2(O)CC/C=C\CCCCN3CC[C@@H]1[C@]1(C[C@@H]4/C=C\CCCCN4[C@@H]21)C3,,0.9,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+[O-][n+]1ccc2c([nH]c3ccccc32)c1C1=C[C@@]2(O)CC/C=C\CCCCN3CC[C@@H]1[C@]1(C[C@@H]4/C=C\CCCCN4[C@@H]21)C3,,1.1,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+N=C(N)c1ccc(OCCCCCOc2ccc(C(=N)N)cc2)cc1,,2.1,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O=C1CCCN2[C@@H](CC1)C[C@]13CN4CCCC/C=C\CC[C@](O)(C=C(c5nccc6c5[nH]c5ccc(O)cc56)[C@@H]1CC4)[C@H]23,,2.5,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O[C@]12C=C(c3nccc4c3[nH]c3ccccc34)C3CCN(CCCC/C=C\CC1)C[C@@]31C[C@]34CC[C@H](CCCN3[C@@H]21)O4,,3.2,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O=C1CCCN2[C@@H](CC1)C[C@]13CN4CCCC/C=C\CC[C@](O)(C=C(c5nccc6c5[nH]c5ccccc56)C1CC4)[C@H]23,,3.8,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O=C1CCCN2[C@@H](CC1)C[C@]13CN4CCCC/C=C\CC[C@](O)(C=C(c5nccc6c5[nH]c5c(O)cccc56)C1CC4)[C@H]23,,4.2,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O[C@H]1CCN2[C@H]3[C@@]4(O)C=C(c5nccc6c5[nH]c5ccccc56)[C@@H]5CCN(CCCC/C=C\CC4)C[C@@]53C[C@]23CC[C@H]1OC[C@]12CN4CCCC/C=C\CC[C@](O)(C=C(c5nccc6c5[nH]c5ccccc56)[C@@H]1CC4)[C@@H]2N1CCC[C@@H](O)[C@H](CC1)O3,,4.2,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O=CC1=C[C@@]2(O)CC/C=C\CCCCN3CC[C@@H]1[C@]1(C[C@@H]4/C=C\CCCCN4[C@@H]21)C3,,4.6,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+Oc1ccc2[nH]c3c(C4=C[C@@]5(O)CC/C=C\CCCCN6CC[C@@H]4[C@@]4(C6)C[C@@]67CC[C@@H](CCCN6[C@@H]54)O7)nccc3c2c1,,5.7,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+Oc1cccc2c1[nH]c1c(C3=C[C@@]4(O)CC/C=C\CCCCN5CC[C@@H]3[C@]3(CC6/C=C\CCCCN6[C@@H]43)C5)nccc12,,6.2,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O[C@]12C=C(c3nccc4c3[nH]c3ccccc34)[C@@H]3CCN(CCCC/C=C\CC1)C[C@@]31CC/C=C\CCCCN[C@@H]21,,25,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O=C1CCCN2[C@H]3[C@@]45C=C(c6nccc7c6[nH]c6ccccc67)[C@@H]6CCN(CCCC/C=C\CC4)C[C@@]63C[C@@]2(CC1)O5,,,,,Not Determined,CHEMBL1000114,F,Leishmania donovani,,,1
+CO[C@H]1/C=C/O[C@@]2(C)Oc3c(C)c(O)c4c(O)c(c(/C=N/N5CCN(C)CC5)c(O)c4c3C2=O)NC(=O)/C(C)=C\C=C\[C@H](C)[C@H](O)[C@@H](C)[C@@H](O)[C@@H](C)[C@H](OC(C)=O)[C@@H]1C,,,,,Not Determined,CHEMBL1000114,F,Leishmania donovani,,,1
+CCN(CC)CCCC(C)Nc1ccnc2cc(Cl)ccc12,,,,,Not Determined,CHEMBL1000114,F,Leishmania donovani,,,1
+C[C@@H]1CC[C@H]2[C@@H](C)C(=O)O[C@@H]3O[C@]4(C)CC[C@@H]1[C@]32OO4,,,,,Not Determined,CHEMBL1000114,F,Leishmania donovani,,,1
+O[C@]12C=C(c3nccc4c3[nH]c3ccccc34)[C@@H]3CCN(CCCC/C=C\CC1)C[C@@]31C[C@@H]3/C=C\CCCCN3[C@@H]21,,1.8,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+Oc1cccc2c1[nH]c1c(C3=C[C@@]4(O)CC/C=C\CCCCN5CC[C@@H]3[C@]3(CC6/C=C\CCCCN6[C@@H]43)C5)nccc12,,11,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+[O-][n+]1ccc2c([nH]c3ccccc32)c1C1=C[C@@]2(O)CC/C=C\CCCCN3CC[C@@H]1[C@]1(C[C@@H]4/C=C\CCCCN4[C@@H]21)C3,,3.8,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O=C1CCCN2[C@H]3[C@@]45C=C(c6nccc7c6[nH]c6ccccc67)[C@@H]6CCN(CCCC/C=C\CC4)C[C@@]63C[C@@]2(CC1)O5,,,,,Not Determined,CHEMBL1000114,F,Leishmania donovani,,,1
+O=C1CCCN2[C@@H](CC1)C[C@]13CN4CCCC/C=C\CC[C@](O)(C=C(c5nccc6c5[nH]c5ccccc56)C1CC4)[C@H]23,,6.8,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O=C1CCCN2[C@@H](CC1)C[C@]13CN4CCCC/C=C\CC[C@](O)(C=C(c5nccc6c5[nH]c5ccc(O)cc56)[C@@H]1CC4)[C@H]23,,4.3,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O=C1CCCN2[C@@H](CC1)C[C@]13CN4CCCC/C=C\CC[C@](O)(C=C(c5nccc6c5[nH]c5c(O)cccc56)C1CC4)[C@H]23,,7,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O[C@]12C=C(c3nccc4c3[nH]c3ccccc34)[C@@H]3CCN(CCCC/C=C\CC1)C[C@@]31CC/C=C\CCCCN[C@@H]21,,45,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O[C@]12C=C(c3nccc4c3[nH]c3ccccc34)C3CCN(CCCC/C=C\CC1)C[C@@]31C[C@]34CC[C@H](CCCN3[C@@H]21)O4,,7.5,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+Oc1ccc2[nH]c3c(C4=C[C@@]5(O)CC/C=C\CCCCN6CC[C@@H]4[C@@]4(C6)C[C@@]67CC[C@@H](CCCN6[C@@H]54)O7)nccc3c2c1,,11,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O[C@H]1CCN2[C@H]3[C@@]4(O)C=C(c5nccc6c5[nH]c5ccccc56)[C@@H]5CCN(CCCC/C=C\CC4)C[C@@]53C[C@]23CC[C@H]1OC[C@]12CN4CCCC/C=C\CC[C@](O)(C=C(c5nccc6c5[nH]c5ccccc56)[C@@H]1CC4)[C@@H]2N1CCC[C@@H](O)[C@H](CC1)O3,,8.2,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+O=CC1=C[C@@]2(O)CC/C=C\CCCCN3CC[C@@H]1[C@]1(C[C@@H]4/C=C\CCCCN4[C@@H]21)C3,,8.5,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+OC1=C[C@@]2(O)CC/C=C\CCCCN3CC[C@@H]1[C@]1(C[C@@H]4/C=C\CCCCN4[C@@H]21)C3,,0.7,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+CO[C@H]1/C=C/O[C@@]2(C)Oc3c(C)c(O)c4c(O)c(c(/C=N/N5CCN(C)CC5)c(O)c4c3C2=O)NC(=O)/C(C)=C\C=C\[C@H](C)[C@H](O)[C@@H](C)[C@@H](O)[C@@H](C)[C@H](OC(C)=O)[C@@H]1C,,,,,Not Determined,CHEMBL1000114,F,Leishmania donovani,,,1
+CCN(CC)CCCC(C)Nc1ccnc2cc(Cl)ccc12,,,,,Not Determined,CHEMBL1000114,F,Leishmania donovani,,,1
+C[C@@H]1CC[C@H]2[C@@H](C)C(=O)O[C@@H]3O[C@]4(C)CC[C@@H]1[C@]32OO4,,,,,Not Determined,CHEMBL1000114,F,Leishmania donovani,,,1
+N=C(N)c1ccc(OCCCCCOc2ccc(C(=N)N)cc2)cc1,,10,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1
+C[C@@H]1OC(=O)C[C@H](O)C[C@H](O)CC[C@@H](O)[C@H](O)C[C@H](O)C[C@]2(O)C[C@H](O)[C@@H](C(=O)O)[C@H](C[C@@H](O[C@@H]3O[C@H](C)[C@@H](O)[C@H](N)[C@@H]3O)/C=C/C=C/C=C/C=C/C=C/C=C/C=C/[C@H](C)[C@@H](O)[C@H]1C)O2,,0.15,ug.mL-1,=,,CHEMBL1000114,F,Leishmania donovani,,,1

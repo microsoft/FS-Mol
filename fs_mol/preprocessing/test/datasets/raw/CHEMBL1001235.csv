@@ -1,0 +1,52 @@
+smiles,pchembl,standard_value,standard_units,standard_relation,activity_comment,chembl_id,assay_type,assay_organism,assay_cell_type,assay_tissue,confidence_score
+COC(=O)[C@@H]1C[C@@]2(Br)c3ccccc3N3C(=N)[C@](Cc4ccccc4)(N4CCCC4)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3ccccc3N3C(=N)[C@H](C(C)(C)C)N1[C@H]32,,17600,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@]2(Br)c3ccccc3N3C(=N)[C@](Cc4ccccc4)(N4CCCC4)N1[C@@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3cc(Br)ccc3N3C(=N)C4(CCCCC4)N1[C@H]32,,6210,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3cc(Br)ccc3N3C(=N)C(C)(C)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3cc(Br)ccc3N3C(=N)[C@](Cc4ccccc4)(N4CCCC4)N1[C@H]32,,11700,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3cc(Br)ccc3N3C(=N)[C@H](C(C)(C)C)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+C=CC[C@@]12C[C@@H](C(=O)OC)N3[C@@H]1N(C(=N)C31CCCCC1)c1ccccc12,,23500,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@H]2c3ccccc3N3C(=N)C4(CCCCC4)N1[C@@H]23,,,,,Not Determined,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@H]2c3ccccc3N3C(=N)C(C)(C)N1[C@@H]23,,,,,Not Determined,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@H]2c3ccccc3N3C(=N)[C@](Cc4ccccc4)(N4CCCC4)N1[C@@H]23,,,,,Not Determined,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+C=CC[C@@]12C[C@@H](C(=O)OC)N3[C@@H]1N(C(=N)[C@]3(Cc1ccccc1)N1CCCC1)c1ccc(Br)cc12,,8220,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(CC=C(C)C)c3ccccc3N3C(=N)C(C)(C)N1[C@H]32,,11000,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(CC=C(C)C)c3ccccc3N3C(=N)[C@H](Cc4ccccc4)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(CC=C(C)C)c3ccccc3N3C(=N)[C@H](c4ccccc4)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(CC=C(C)C)c3ccccc3N3C(=N)[C@H](C(C)(C)C)N1[C@H]32,,15200,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@]2(CC=C(C)C)c3ccccc3N3C(=N)[C@@H](Cc4ccccc4)N1[C@@H]32,,9390,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3ccccc3N3C(=N)[C@](Cc4ccccc4)(N4CCCC4)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3ccccc3N3C(=N)[C@H](C(C)(C)C)N1[C@H]32,,25500,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@]2(Br)c3ccccc3N3C(=N)[C@](Cc4ccccc4)(N4CCCC4)N1[C@@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3cc(Br)ccc3N3C(=N)C4(CCCCC4)N1[C@H]32,,8490,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3cc(Br)ccc3N3C(=N)C(C)(C)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3cc(Br)ccc3N3C(=N)[C@](Cc4ccccc4)(N4CCCC4)N1[C@H]32,,17400,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3cc(Br)ccc3N3C(=N)[C@H](C(C)(C)C)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+C=CC[C@@]12C[C@@H](C(=O)OC)N3[C@@H]1N(C(=N)C31CCCCC1)c1ccccc12,,24600,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@H]2c3ccccc3N3C(=N)C4(CCCCC4)N1[C@@H]23,,,,,Not Determined,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@H]2c3ccccc3N3C(=N)C(C)(C)N1[C@@H]23,,,,,Not Determined,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@H]2c3ccccc3N3C(=N)[C@](Cc4ccccc4)(N4CCCC4)N1[C@@H]23,,,,,Not Determined,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+C=CC[C@@]12C[C@@H](C(=O)OC)N3[C@@H]1N(C(=N)[C@]3(Cc1ccccc1)N1CCCC1)c1ccc(Br)cc12,,18700,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(CC=C(C)C)c3ccccc3N3C(=N)C(C)(C)N1[C@H]32,,28300,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(CC=C(C)C)c3ccccc3N3C(=N)[C@H](Cc4ccccc4)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(CC=C(C)C)c3ccccc3N3C(=N)[C@H](c4ccccc4)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(CC=C(C)C)c3ccccc3N3C(=N)[C@H](C(C)(C)C)N1[C@H]32,,26200,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@]2(CC=C(C)C)c3ccccc3N3C(=N)[C@@H](Cc4ccccc4)N1[C@@H]32,,24100,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3ccccc3N3C(=N)[C@](Cc4ccccc4)(N4CCCC4)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3ccccc3N3C(=N)[C@H](C(C)(C)C)N1[C@H]32,,25500,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@]2(Br)c3ccccc3N3C(=N)[C@](Cc4ccccc4)(N4CCCC4)N1[C@@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3cc(Br)ccc3N3C(=N)C4(CCCCC4)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3cc(Br)ccc3N3C(=N)C(C)(C)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3cc(Br)ccc3N3C(=N)[C@](Cc4ccccc4)(N4CCCC4)N1[C@H]32,,17400,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(Br)c3cc(Br)ccc3N3C(=N)[C@H](C(C)(C)C)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+C=CC[C@@]12C[C@@H](C(=O)OC)N3[C@@H]1N(C(=N)C31CCCCC1)c1ccccc12,,25700,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@H]2c3ccccc3N3C(=N)C4(CCCCC4)N1[C@@H]23,,,,,Not Determined,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@H]2c3ccccc3N3C(=N)C(C)(C)N1[C@@H]23,,,,,Not Determined,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@H]2c3ccccc3N3C(=N)[C@](Cc4ccccc4)(N4CCCC4)N1[C@@H]23,,,,,Not Determined,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+C=CC[C@@]12C[C@@H](C(=O)OC)N3[C@@H]1N(C(=N)[C@]3(Cc1ccccc1)N1CCCC1)c1ccc(Br)cc12,,18700,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(CC=C(C)C)c3ccccc3N3C(=N)C(C)(C)N1[C@H]32,,28300,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(CC=C(C)C)c3ccccc3N3C(=N)[C@H](Cc4ccccc4)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(CC=C(C)C)c3ccccc3N3C(=N)[C@H](c4ccccc4)N1[C@H]32,,100000,nM,>,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@@]2(CC=C(C)C)c3ccccc3N3C(=N)[C@H](C(C)(C)C)N1[C@H]32,,26200,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
+COC(=O)[C@@H]1C[C@]2(CC=C(C)C)c3ccccc3N3C(=N)[C@@H](Cc4ccccc4)N1[C@@H]32,,24100,nM,=,,CHEMBL1001235,F,Homo sapiens,MDA-MB-231,,1
