@@ -253,7 +253,6 @@ def process_all_assays(
     files_to_process: List[str],
     output_dir: str,
     basepath: str,
-    start_step: int,
     stop_step: int,
 ) -> None:
 
@@ -297,13 +296,9 @@ def process_all_assays(
                 df.drop(columns=["Unnamed: 0"], inplace=True)
 
             failed = False
-            # go through the cleaning steps from start-step to stop-step
+            # go through the cleaning steps
             for step, clean_func in CLEANING_STEPS.items():
                 if failed:
-                    break
-                elif step < start_step:
-                    continue
-                elif step > stop_step:
                     break
                 else:
                     if step != 0:
@@ -453,7 +448,7 @@ def clean_directory(args):
     files_to_process = get_files_to_process(input_dir, output_dir)
 
     process_all_assays(
-        files_to_process, output_dir, basepath, args.start_step, args.stop_step
+        files_to_process, output_dir, basepath, args.stop_step
     )
 
 
