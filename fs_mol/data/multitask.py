@@ -29,15 +29,15 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class FSMolMolFiLMBatch(FSMolBatch):
+class FSMolMultitaskBatch(FSMolBatch):
     sample_to_task_id: np.ndarray
 
 
-def molfilm_batcher_init_fn(batch_data: Dict[str, Any]):
+def multitask_batcher_init_fn(batch_data: Dict[str, Any]):
     batch_data["sample_to_task_id"] = []
 
 
-def molfilm_batcher_add_sample_fn(
+def multitask_batcher_add_sample_fn(
     batch_data: Dict[str, Any],
     sample_id: int,
     sample: MoleculeDatapoint,
@@ -46,12 +46,12 @@ def molfilm_batcher_add_sample_fn(
     batch_data["sample_to_task_id"].append(task_name_to_id[sample.task_name])
 
 
-def molfilm_batcher_finalizer_fn(
+def multitask_batcher_finalizer_fn(
     batch_data: Dict[str, Any]
-) -> Tuple[FSMolMolFiLMBatch, np.ndarray]:
+) -> Tuple[FSMolMultitaskBatch, np.ndarray]:
     plain_batch = fsmol_batch_finalizer(batch_data)
     return (
-        FSMolMolFiLMBatch(
+        FSMolMultitaskBatch(
             sample_to_task_id=np.stack(batch_data["sample_to_task_id"], axis=0),
             **dataclasses.asdict(plain_batch),
         ),
@@ -59,33 +59,35 @@ def molfilm_batcher_finalizer_fn(
     )
 
 
-def get_molfilm_batcher(
+def get_multitask_batcher(
     task_name_to_id: Dict[str, int],
     max_num_graphs: Optional[int] = None,
     max_num_nodes: Optional[int] = None,
     max_num_edges: Optional[int] = None,
-) -> FSMolBatcher[FSMolMolFiLMBatch, np.ndarray]:
+) -> FSMolBatcher[FSMolMultitaskBatch, np.ndarray]:
     return FSMolBatcher(
         max_num_graphs=max_num_graphs,
         max_num_nodes=max_num_nodes,
         max_num_edges=max_num_edges,
-        init_callback=molfilm_batcher_init_fn,
+        init_callback=multitask_batcher_init_fn,
         per_datapoint_callback=partial(
-            molfilm_batcher_add_sample_fn, task_name_to_id=task_name_to_id
+            multitask_batcher_add_sample_fn, task_name_to_id=task_name_to_id
         ),
-        finalizer_callback=molfilm_batcher_finalizer_fn,
+        finalizer_callback=multitask_batcher_finalizer_fn,
     )
 
 
-def get_molfilm_inference_batcher(
+def get_multitask_inference_batcher(
     max_num_graphs: int,
-) -> FSMolBatcher[FSMolMolFiLMBatch, np.ndarray]:
+) -> FSMolBatcher[FSMolMultitaskBatch, np.ndarray]:
     # In this setting, we only consider a single task at a time, so they just all get the same ID:
     task_name_to_const_id: Dict[str, int] = defaultdict(lambda: 0)
-    return get_molfilm_batcher(task_name_to_id=task_name_to_const_id, max_num_graphs=max_num_graphs)
+    return get_multitask_batcher(
+        task_name_to_id=task_name_to_const_id, max_num_graphs=max_num_graphs
+    )
 
 
-class MolFiLMTaskSampleBatchIterable(Iterable[Tuple[FSMolMolFiLMBatch, np.ndarray]]):
+class MultitaskTaskSampleBatchIterable(Iterable[Tuple[FSMolMultitaskBatch, np.ndarray]]):
     def __init__(
         self,
         dataset: FSMolDataset,
@@ -105,14 +107,14 @@ class MolFiLMTaskSampleBatchIterable(Iterable[Tuple[FSMolMolFiLMBatch, np.ndarra
         self._task_sampler = RandomTaskSampler(
             train_size_or_ratio=1024, valid_size_or_ratio=0, test_size_or_ratio=0
         )
-        self._batcher = get_molfilm_batcher(
+        self._batcher = get_multitask_batcher(
             task_name_to_id, max_num_graphs, max_num_nodes, max_num_edges
         )
 
-    def __iter__(self) -> Iterator[Tuple[FSMolMolFiLMBatch, np.ndarray]]:
+    def __iter__(self) -> Iterator[Tuple[FSMolMultitaskBatch, np.ndarray]]:
         def paths_to_mixed_samples(
             paths: List[RichPath], idx: int
-        ) -> Iterable[Tuple[FSMolMolFiLMBatch, np.ndarray]]:
+        ) -> Iterable[Tuple[FSMolMultitaskBatch, np.ndarray]]:
             loaded_samples: List[MoleculeDatapoint] = []
             for i, path in enumerate(paths):
                 task = FSMolTask.load_from_file(path)

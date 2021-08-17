@@ -30,13 +30,18 @@ from fs_mol.data import (
     DatasetTooSmallException,
     FoldTooSmallException,
 )
-from fs_mol.data.molfilm import (
-    FSMolMolFiLMBatch,
-    MolFiLMTaskSampleBatchIterable,
-    get_molfilm_inference_batcher,
+from fs_mol.data.multitask import (
+    FSMolMultitaskBatch,
+    MultitaskTaskSampleBatchIterable,
+    get_multitask_inference_batcher,
 )
 from fs_mol.models.interface import AbstractTorchModel
-from fs_mol.models.mol_pred_model import MolPredConfig, MolPredModel, ThickGNNConfig, create_model
+from fs_mol.models.gnn_multitask import (
+    GNNMultitaskConfig,
+    GNNMultitaskModel,
+    GNNConfig,
+    create_model,
+)
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
 from fs_mol.utils.logging import PROGRESS_LOG_LEVEL, prefix_log_msgs
 from fs_mol.utils.metric_logger import MetricLogger
@@ -46,7 +51,7 @@ from fs_mol.utils.metrics import (
     BinaryEvalMetrics,
     BinaryMetricType,
 )
-from fs_mol.utils.molfilm_utils import create_optimizer, save_model
+from fs_mol.utils.multitask_utils import create_optimizer, save_model
 from fs_mol.utils.test_utils import FSMolTaskSampleEvalResults
 
 
@@ -61,7 +66,7 @@ MetricType = Union[BinaryMetricType, Literal["loss"]]
 
 def run_on_data_iterable(
     model: AbstractTorchModel,
-    data_iterable: Iterable[Tuple[FSMolMolFiLMBatch, np.ndarray]],
+    data_iterable: Iterable[Tuple[FSMolMultitaskBatch, np.ndarray]],
     optimizer: Optional[torch.optim.Optimizer] = None,
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     max_num_steps: Optional[int] = None,
@@ -149,7 +154,7 @@ def run_on_data_iterable(
 
 def validate_on_data_iterable(
     model: AbstractTorchModel,
-    data_iterable: Iterable[Tuple[FSMolMolFiLMBatch, np.ndarray]],
+    data_iterable: Iterable[Tuple[FSMolMultitaskBatch, np.ndarray]],
     metric_to_use: MetricType = "avg_precision",
     quiet: bool = False,
 ) -> float:
@@ -316,9 +321,9 @@ def validate_by_finetuning_on_tasks(
         for task in tasks:
             task_metrics = eval_model_by_finetuning_on_task(
                 current_model_path,
-                model_cls=MolPredModel,
+                model_cls=GNNMultitaskModel,
                 task=task,
-                batcher=get_molfilm_inference_batcher(max_num_graphs=batch_size),
+                batcher=get_multitask_inference_batcher(max_num_graphs=batch_size),
                 train_set_sample_sizes=[16, 128],
                 test_set_size=512,
                 num_samples=3,
@@ -345,7 +350,7 @@ def train_loop(
     model: AbstractTorchModel,
     optimizer: torch.optim.Optimizer,
     lr_scheduler: torch.optim.lr_scheduler._LRScheduler,
-    train_data: Iterable[Tuple[FSMolMolFiLMBatch, np.ndarray]],
+    train_data: Iterable[Tuple[FSMolMultitaskBatch, np.ndarray]],
     valid_fn: Callable[[AbstractTorchModel], float],
     output_folder: str,
     metric_to_use: MetricType = "avg_precision",
@@ -358,8 +363,7 @@ def train_loop(
         log_level = logging.DEBUG
     else:
         log_level = logging.INFO
-    # initial_valid_metric = float("-inf")
-    initial_valid_metric = valid_fn(model)
+    initial_valid_metric = float("-inf")
     best_valid_metric = initial_valid_metric
     logger.log(log_level, f"  Initial validation metric: {best_valid_metric:.5f}")
 
@@ -439,23 +443,11 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="Size of intermediate representation used in BOOM layer. Set to 0 to deactivate BOOM layer.",
     )
     parser.add_argument("--message_function_depth", type=int, default=1)
-    parser.add_argument(
-        "--use_msg_film",
-        type=str2bool,
-        default=True,
-        help="Toggle task-dependent modulation of GNN messages.",
-    )
-    parser.add_argument(
-        "--use_msg_att_film",
-        type=str2bool,
-        default=False,
-        help="Toggle task-dependent modulation of GNN message attention scores.",
-    )
 
     parser.add_argument(
         "--readout_type",
         type=str,
-        default="combined_task",
+        default="combined",
         choices=[
             "sum",
             "min",
@@ -463,10 +455,7 @@ def add_model_arguments(parser: argparse.ArgumentParser):
             "mean",
             "weighted_sum",
             "weighted_mean",
-            "task_weighted_sum",
-            "task_weighted_mean",
             "combined",
-            "combined_task",
         ],
         help="Readout used to summarise atoms into a molecule",
     )
@@ -476,39 +465,16 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         default=True,
         help="Indicates if all intermediate GNN activations or only the final ones should be used when computing a graph-level representation.",
     )
-    parser.add_argument(
-        "--use_init_film",
-        type=str2bool,
-        default=True,
-        help="Toggle task-dependent modulation of initial node representations.",
-    )
-    parser.add_argument(
-        "--use_tail_task_emb",
-        type=str2bool,
-        default=False,
-        help="Toggle use of an additional task embedding as input to output MLP.",
-    )
-    parser.add_argument(
-        "--use_output_masking",
-        type=str2bool,
-        default=True,
-        help="Produce predictions for all tasks for each input, but only compute loss on correct one.",
-    )
     parser.add_argument("--num_tail_layers", type=int, default=2)
-    parser.add_argument(
-        "--task_embedding_dim",
-        type=int,
-        help="Size of task embeddings. If unspecified, size is automatically determined by usage. If specified, appropriate projections for all usages are instantiated.",
-    )
 
 
 def make_model_from_args(
     num_tasks: int, args: argparse.Namespace, device: Optional[torch.device] = None
 ):
-    model_config = MolPredConfig(
+    model_config = GNNMultitaskConfig(
         num_tasks=num_tasks,
         node_feature_dim=NUM_NODE_FEATURES,
-        gnn_config=ThickGNNConfig(
+        gnn_config=GNNConfig(
             type=args.gnn_type,
             hidden_dim=args.node_embed_dim,
             num_edge_types=NUM_EDGE_TYPES,
@@ -517,17 +483,11 @@ def make_model_from_args(
             intermediate_dim=args.intermediate_dim,
             message_function_depth=args.message_function_depth,
             num_layers=args.num_gnn_layers,
-            use_msg_film=args.use_msg_film,
-            use_msg_att_film=args.use_msg_att_film,
         ),
         num_outputs=1,
         readout_type=args.readout_type,
         readout_use_only_last_timestep=not args.readout_use_all_states,
         num_tail_layers=args.num_tail_layers,
-        use_init_film=args.use_init_film,
-        use_tail_task_emb=args.use_tail_task_emb,
-        use_output_masking=args.use_output_masking,
-        task_embedding_dim=args.task_embedding_dim,
     )
     model = create_model(model_config, device=device)
     return model
@@ -588,7 +548,7 @@ def main():
 
     args = parser.parse_args()
 
-    out_dir, fsmol_dataset, aml_run = set_up_train_run("MolFiLM", args, torch=True)
+    out_dir, fsmol_dataset, aml_run = set_up_train_run("Multitask", args, torch=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = make_model_from_args(
@@ -630,7 +590,7 @@ def main():
         model=model,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
-        train_data=MolFiLMTaskSampleBatchIterable(
+        train_data=MultitaskTaskSampleBatchIterable(
             fsmol_dataset,
             data_fold=DataFold.TRAIN,
             task_name_to_id=train_task_name_to_id,

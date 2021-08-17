@@ -1,12 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 
 import torch
 import torch.nn as nn
 from torch_scatter import scatter_softmax, scatter
 
 from fs_mol.modules.mlp import MLP
-from fs_mol.modules.task_specific_models import TaskEmbeddingLayerProvider
 
 
 class GraphReadout(nn.Module, ABC):
@@ -30,7 +28,6 @@ class GraphReadout(nn.Module, ABC):
         node_embeddings: torch.Tensor,
         node_to_graph_id: torch.Tensor,
         num_graphs: int,
-        node_to_task_id: Optional[torch.Tensor],
     ) -> torch.Tensor:
         """
         Args:
@@ -39,8 +36,6 @@ class GraphReadout(nn.Module, ABC):
             node_to_graph_id: int tensor of shape [num_nodes], assigning a graph_id to each
                 node.
             num_graphs: int scalar, giving the number of graphs in the batch.
-            node_to_task_id: int tensor of shape [num_nodes], assigning a task_id to each
-                node. Optional if no task-dependent readout is configured.
 
         Returns:
             float tensor of shape [num_graphs, out_dim]
@@ -55,8 +50,6 @@ class CombinedGraphReadout(GraphReadout):
         out_dim: int,
         num_heads: int,
         head_dim: int,
-        task_embedding_provider: Optional[TaskEmbeddingLayerProvider] = None,
-        use_task_specific_scores: bool = False,
     ):
         """
         See superclass for first few parameters.
@@ -66,30 +59,25 @@ class CombinedGraphReadout(GraphReadout):
             head_dim: Size of the result of each independent head.
             num_mlp_layers: Number of layers in the MLPs used to compute per-head weights and
                 outputs.
-            use_task_specific_scores: Use task-specific scores when performing the final pooling
-                operation.
         """
         super().__init__(node_dim, out_dim)
         self._num_heads = num_heads
         self._head_dim = head_dim
-        self._use_task_specific_scores = use_task_specific_scores
 
         # Create weighted_mean, weighted_sum, max pooling layers:
         self._weighted_mean_pooler = MultiHeadWeightedGraphReadout(
             node_dim=node_dim,
             out_dim=out_dim,
-            task_embedding_provider=task_embedding_provider,
             num_heads=num_heads,
             head_dim=head_dim,
-            weighting_type=f"{'task_' if use_task_specific_scores else ''}weighted_mean",
+            weighting_type="weighted_mean",
         )
         self._weighted_sum_pooler = MultiHeadWeightedGraphReadout(
             node_dim=node_dim,
             out_dim=out_dim,
-            task_embedding_provider=task_embedding_provider,
             num_heads=num_heads,
             head_dim=head_dim,
-            weighting_type=f"{'task_' if use_task_specific_scores else ''}weighted_sum",
+            weighting_type="weighted_sum",
         )
         self._max_pooler = UnweightedGraphReadout(
             node_dim=node_dim,
@@ -105,17 +93,10 @@ class CombinedGraphReadout(GraphReadout):
         node_embeddings: torch.Tensor,
         node_to_graph_id: torch.Tensor,
         num_graphs: int,
-        node_to_task_id: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        mean_graph_repr = self._weighted_mean_pooler(
-            node_embeddings, node_to_graph_id, num_graphs, node_to_task_id
-        )
-        sum_graph_repr = self._weighted_sum_pooler(
-            node_embeddings, node_to_graph_id, num_graphs, node_to_task_id
-        )
-        max_graph_repr = self._max_pooler(
-            node_embeddings, node_to_graph_id, num_graphs, node_to_task_id
-        )
+        mean_graph_repr = self._weighted_mean_pooler(node_embeddings, node_to_graph_id, num_graphs)
+        sum_graph_repr = self._weighted_sum_pooler(node_embeddings, node_to_graph_id, num_graphs)
+        max_graph_repr = self._max_pooler(node_embeddings, node_to_graph_id, num_graphs)
 
         # concat & non-linearity & combine:
         raw_graph_repr = torch.cat((mean_graph_repr, sum_graph_repr, max_graph_repr), dim=1)
@@ -131,7 +112,6 @@ class MultiHeadWeightedGraphReadout(GraphReadout):
         num_heads: int,
         head_dim: int,
         weighting_type: str,
-        task_embedding_provider: Optional[TaskEmbeddingLayerProvider] = None,
         num_mlp_layers: int = 1,
     ):
         """
@@ -153,32 +133,15 @@ class MultiHeadWeightedGraphReadout(GraphReadout):
         if weighting_type not in (
             "weighted_sum",
             "weighted_mean",
-            "task_weighted_sum",
-            "task_weighted_mean",
         ):
             raise ValueError(f"Unknown weighting type {weighting_type}!")
+        self._weighting_type = weighting_type
 
-        # We don't need to distinguish task_* apart from the flag we set above:
-        if weighting_type.startswith("task_"):
-            self._use_task_specific_scores = True
-            self._weighting_type = weighting_type[5:]
-        else:
-            self._use_task_specific_scores = False
-            self._weighting_type = weighting_type
-
-        if self._use_task_specific_scores:
-            assert task_embedding_provider is not None
-            self._scoring_projection = torch.nn.Linear(self._node_dim, self._head_dim * num_heads)
-            self._scoring_module = task_embedding_provider.get_task_linear_layer(
-                in_size=self._head_dim * num_heads,
-                out_size=num_heads,
-            )
-        else:
-            self._scoring_module = MLP(
-                input_dim=self._node_dim,
-                hidden_layer_dims=[self._head_dim * num_heads] * num_mlp_layers,
-                out_dim=num_heads,
-            )
+        self._scoring_module = MLP(
+            input_dim=self._node_dim,
+            hidden_layer_dims=[self._head_dim * num_heads] * num_mlp_layers,
+            out_dim=num_heads,
+        )
 
         self._transformation_mlp = MLP(
             input_dim=self._node_dim,
@@ -192,18 +155,9 @@ class MultiHeadWeightedGraphReadout(GraphReadout):
         node_embeddings: torch.Tensor,
         node_to_graph_id: torch.Tensor,
         num_graphs: int,
-        node_to_task_id: Optional[torch.Tensor],
     ) -> torch.Tensor:
         # Step 1: compute scores, then normalise them according to config:
-        if self._use_task_specific_scores:
-            projected_node_embeddings = self._scoring_projection(
-                node_embeddings
-            )  # [V, node_dim * num_heads]
-            scores = self._scoring_module(
-                projected_node_embeddings, node_to_task_id
-            )  # [V, num_heads]
-        else:
-            scores = self._scoring_module(node_embeddings)  # [V, num_heads]
+        scores = self._scoring_module(node_embeddings)  # [V, num_heads]
 
         if self._weighting_type == "weighted_sum":
             weights = torch.sigmoid(scores)  # [V, num_heads]
@@ -219,10 +173,13 @@ class MultiHeadWeightedGraphReadout(GraphReadout):
         # Step 3: apply weights and sum up per graph:
         weighted_values = weights.unsqueeze(-1) * values  # [V, num_heads, head_dim]
         per_graph_values = torch.zeros(
-            (num_graphs, self._num_heads * self._head_dim), device=node_embeddings.device
+            (num_graphs, self._num_heads * self._head_dim),
+            device=node_embeddings.device,
         )
         per_graph_values.index_add_(
-            0, node_to_graph_id, weighted_values.view(-1, self._num_heads * self._head_dim)
+            0,
+            node_to_graph_id,
+            weighted_values.view(-1, self._num_heads * self._head_dim),
         )  # [num_graphs, num_heads * head_dim]
 
         # Step 4: go to output size:
@@ -255,7 +212,6 @@ class UnweightedGraphReadout(GraphReadout):
         node_embeddings: torch.Tensor,
         node_to_graph_id: torch.Tensor,
         num_graphs: int,
-        node_to_task_id: Optional[torch.Tensor],
     ) -> torch.Tensor:
         per_graph_values = scatter(
             src=node_embeddings,

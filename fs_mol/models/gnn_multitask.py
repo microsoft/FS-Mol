@@ -7,9 +7,9 @@ from typing import Any, Dict, Optional, Tuple
 import torch
 import torch.nn as nn
 
-from fs_mol.data.molfilm import FSMolMolFiLMBatch
+from fs_mol.data.multitask import FSMolMultitaskBatch
 from fs_mol.models.interface import AbstractTorchModel
-from fs_mol.modules.thick_gnn import ThickGNN, ThickGNNConfig
+from fs_mol.modules.gnn import GNN, GNNConfig
 from fs_mol.modules.graph_readout import (
     GraphReadout,
     CombinedGraphReadout,
@@ -17,20 +17,15 @@ from fs_mol.modules.graph_readout import (
     UnweightedGraphReadout,
 )
 from fs_mol.modules.mlp import MLP
-from fs_mol.modules.task_specific_models import (
-    ProjectedTaskEmbeddingLayerProvider,
-    TaskEmbeddingFiLMLayer,
-    LearnedTaskEmbeddingLayerProvider,
-)
 
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class MolPredConfig:
+class GNNMultitaskConfig:
     num_tasks: int
-    gnn_config: ThickGNNConfig
+    gnn_config: GNNConfig
     node_feature_dim: int = 32
     num_outputs: int = 1
     readout_type: str = "sum"
@@ -39,50 +34,28 @@ class MolPredConfig:
     readout_num_heads: int = 12
     readout_head_dim: int = 64
     num_tail_layers: int = 1
-    use_init_film: bool = False
-    use_tail_task_emb: bool = False
-    use_output_masking: bool = False
-    task_embedding_dim: Optional[int] = None
 
 
-class MolPredModel(AbstractTorchModel[FSMolMolFiLMBatch]):
-    def __init__(self, config: MolPredConfig):
+class GNNMultitaskModel(AbstractTorchModel[FSMolMultitaskBatch]):
+    def __init__(self, config: GNNMultitaskConfig):
         super().__init__()
         self.config = config
         self.device = torch.device("cpu")  # Default, we'll override where appropriate
 
         # Set some values / defaults:
-        if config.use_output_masking:
-            config.num_outputs = config.num_tasks
-        else:
-            config.num_outputs = 1
+        config.num_outputs = config.num_tasks
 
         if config.readout_dim is None:
             config.readout_dim = 4 * config.gnn_config.hidden_dim
         else:
             config.readout_dim
 
-        if config.task_embedding_dim is None:
-            self.task_embedding_provider = LearnedTaskEmbeddingLayerProvider(
-                num_tasks=config.num_tasks
-            )
-        else:
-            self.task_embedding_provider = ProjectedTaskEmbeddingLayerProvider(
-                task_embedding_dim=config.task_embedding_dim, num_tasks=config.num_tasks
-            )
-
         # Initial (per-node) layers:
         self.init_node_proj = nn.Linear(
             config.node_feature_dim, config.gnn_config.hidden_dim, bias=False
         )
-        if config.use_init_film:
-            self.init_node_film_layer: Optional[nn.Module] = TaskEmbeddingFiLMLayer(
-                self.task_embedding_provider, config.gnn_config.hidden_dim
-            )
-        else:
-            self.init_node_film_layer = None
 
-        self.gnn = ThickGNN(self.config.gnn_config, self.task_embedding_provider)
+        self.gnn = GNN(self.config.gnn_config)
 
         if config.readout_use_only_last_timestep:
             readout_node_dim = config.gnn_config.hidden_dim
@@ -94,16 +67,13 @@ class MolPredModel(AbstractTorchModel[FSMolMolFiLMBatch]):
             self.readout: GraphReadout = CombinedGraphReadout(
                 node_dim=readout_node_dim,
                 out_dim=config.readout_dim,
-                task_embedding_provider=self.task_embedding_provider,
                 num_heads=config.readout_num_heads,
                 head_dim=config.readout_head_dim,
-                use_task_specific_scores=config.readout_type.endswith("_task"),
             )
         elif "weighted" in config.readout_type:
             self.readout = MultiHeadWeightedGraphReadout(
                 node_dim=readout_node_dim,
                 out_dim=config.readout_dim,
-                task_embedding_provider=self.task_embedding_provider,
                 num_heads=config.readout_num_heads,
                 head_dim=config.readout_head_dim,
                 weighting_type=config.readout_type,
@@ -115,26 +85,13 @@ class MolPredModel(AbstractTorchModel[FSMolMolFiLMBatch]):
                 pooling_type=config.readout_type,
             )
 
-        # Final prediction layers:
-        if config.use_tail_task_emb:
-            # This will be concatenated to the output:
-            self.tail_task_emb: Optional[
-                nn.Module
-            ] = self.task_embedding_provider.get_task_embedding_layer(
-                embedding_dim=config.readout_dim
-            )
-            self.mol_representation_dim = 2 * config.readout_dim
-        else:
-            self.tail_task_emb = None
-            self.mol_representation_dim = config.readout_dim
+        self.tail_mlp = self.__create_tail_MLP(self.config.num_outputs)
 
-        self.tail_mlp = self.__create_tail_MLP()
-
-    def __create_tail_MLP(self) -> MLP:
+    def __create_tail_MLP(self, num_outputs: int) -> MLP:
         return MLP(
-            input_dim=self.mol_representation_dim,
-            hidden_layer_dims=[self.mol_representation_dim] * (self.config.num_tail_layers - 1),
-            out_dim=self.config.num_outputs,
+            input_dim=self.config.readout_dim,
+            hidden_layer_dims=[self.config.readout_dim] * (self.config.num_tail_layers - 1),
+            out_dim=num_outputs,
         )
 
     def to(self, device):
@@ -142,12 +99,9 @@ class MolPredModel(AbstractTorchModel[FSMolMolFiLMBatch]):
         return super().to(device)
 
     def reinitialize_task_parameters(self, new_num_tasks: Optional[int] = None):
-        self.task_embedding_provider.reinitialize_task_parameters(new_num_tasks)
+        self.tail_mlp = self.__create_tail_MLP(new_num_tasks or self.config.num_outputs)
 
-        # TODO: Reinitialise the entire tail MLP - maybe we want to keep more bits here?
-        self.tail_mlp = self.__create_tail_MLP()
-
-    def forward(self, batch: FSMolMolFiLMBatch):
+    def forward(self, batch: FSMolMultitaskBatch):
         """Predicts a float (unbounded), representing binding affinity for each input molecule.
 
         Args:
@@ -156,46 +110,16 @@ class MolPredModel(AbstractTorchModel[FSMolMolFiLMBatch]):
         Returns:
             List of per-molecule predictions of length `batch.num_graphs`.
         """
-        # First check if we got what we needed:
-        if batch.sample_to_task_id is None:
-            if (
-                self.config.use_init_film
-                or self.config.gnn_config.use_msg_film
-                or self.config.gnn_config.use_msg_att_film
-                or self.config.use_tail_task_emb
-            ):
-                raise ValueError(
-                    f"Using FiLM/task embeddings requires passing in the sample_to_task map!"
-                )
-
         # Our inputs are numpy arrays, so we will need to move everything into torch.Tensor on
         # the right device.
         node_features = torch.tensor(batch.node_features, dtype=torch.float, device=self.device)
         node_to_graph = torch.tensor(batch.node_to_graph, dtype=torch.long, device=self.device)
 
-        if batch.sample_to_task_id is not None:
-            graph_to_task = torch.tensor(
-                batch.sample_to_task_id, dtype=torch.long, device=self.device
-            )
-
-            node_to_task: Optional[torch.Tensor] = graph_to_task[node_to_graph]
-        else:
-            # the below always needs node_to_task, so won't work without it
-            # might want to change some of the node_to_task to node_to_graph
-            raise NotImplementedError
-
-        # ----- Update the per-task embeddings (if necessary)
-        self.task_embedding_provider.update_task_embeddings()
-
         # ----- Initial (per-node) layers:
         initial_node_features = self.init_node_proj(node_features)
-        if self.init_node_film_layer is not None:
-            initial_node_features = self.init_node_film_layer(initial_node_features, node_to_task)
 
         # ----- Message passing layers:
-        all_node_representations = self.gnn(
-            initial_node_features, batch.adjacency_lists, node_to_task
-        )
+        all_node_representations = self.gnn(initial_node_features, batch.adjacency_lists)
 
         # ----- Readout phase:
         if self.config.readout_use_only_last_timestep:
@@ -203,22 +127,15 @@ class MolPredModel(AbstractTorchModel[FSMolMolFiLMBatch]):
         else:
             readout_node_reprs = torch.cat(all_node_representations, dim=-1)
 
-        mol_representations = self.readout(
-            readout_node_reprs, node_to_graph, batch.num_graphs, node_to_task
-        )
+        mol_representations = self.readout(readout_node_reprs, node_to_graph, batch.num_graphs)
 
         # ----- Tail phase
-        if self.tail_task_emb is not None:
-            mol_representations = torch.cat(
-                (mol_representations, self.tail_task_emb(graph_to_task)), axis=1
-            )
-
         mol_predictions = self.tail_mlp(mol_representations)
 
         # If we use masking, we throw away all predictions that have nothing to do with
         # our target task:
-        if self.config.use_output_masking:
-            mol_predictions = torch.gather(mol_predictions, 1, graph_to_task.unsqueeze(-1))
+        graph_to_task = torch.tensor(batch.sample_to_task_id, dtype=torch.long, device=self.device)
+        mol_predictions = torch.gather(mol_predictions, 1, graph_to_task.unsqueeze(-1))
 
         return mol_predictions
 
@@ -229,11 +146,7 @@ class MolPredModel(AbstractTorchModel[FSMolMolFiLMBatch]):
         }
 
     def is_param_task_specific(self, param_name: str) -> bool:
-        return (
-            param_name.endswith(".task_emb.weight")
-            or param_name.endswith("._per_task_matrices")
-            or (self.config.use_output_masking and param_name.startswith("tail_mlp."))
-        )
+        return param_name.startswith("tail_mlp.")
 
     def load_model_weights(
         self,
@@ -258,7 +171,7 @@ class MolPredModel(AbstractTorchModel[FSMolMolFiLMBatch]):
         config_overrides: Dict[str, Any] = {},
         quiet: bool = False,
         device: Optional[torch.device] = None,
-    ) -> MolPredModel:
+    ) -> GNNMultitaskModel:
         """Build the model architecture based on a saved checkpoint."""
         model, _ = load_model(
             model_file,
@@ -271,8 +184,10 @@ class MolPredModel(AbstractTorchModel[FSMolMolFiLMBatch]):
         return model
 
 
-def create_model(config: MolPredConfig, device: Optional[torch.device] = None) -> MolPredModel:
-    model = MolPredModel(config)
+def create_model(
+    config: GNNMultitaskConfig, device: Optional[torch.device] = None
+) -> GNNMultitaskModel:
+    model = GNNMultitaskModel(config)
     if device is not None:
         model = model.to(device)
     return model
@@ -280,14 +195,14 @@ def create_model(config: MolPredConfig, device: Optional[torch.device] = None) -
 
 def load_model(
     model_file: str,
-    model: Optional[MolPredModel] = None,
+    model: Optional[GNNMultitaskModel] = None,
     optimizer: Optional[torch.optim.Optimizer] = None,
     config_overrides: Dict[str, Any] = {},
     load_model_weights: bool = True,
     reinit_task_specific_weights: bool = True,
     quiet: bool = False,
     device: Optional[torch.device] = None,
-) -> Tuple[MolPredModel, Optional[torch.optim.Optimizer]]:
+) -> Tuple[GNNMultitaskModel, Optional[torch.optim.Optimizer]]:
     """Load weights from file, either into an existing model, or a fresh model
     created following the loaded configuration."""
     checkpoint = torch.load(model_file, map_location=device)
