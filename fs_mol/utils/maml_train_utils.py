@@ -21,7 +21,7 @@ from fs_mol.data import (
     FoldTooSmallException,
     StratifiedTaskSampler,
 )
-from fs_mol.models.split_lr_graph_binary_classification import SplitLRGraphBinaryClassificationTask
+from fs_mol.models.metalearning_graph_binary_classification import MetalearningGraphBinaryClassificationTask
 from fs_mol.utils.logging import PROGRESS_LOG_LEVEL, prefix_log_msgs, restrict_console_log_level
 from fs_mol.utils.metrics import (
     BinaryEvalMetrics,
@@ -41,7 +41,7 @@ MetricType = Union[BinaryMetricType, Literal["loss"]]
 
 def save_model(
     save_file: str,
-    model: SplitLRGraphBinaryClassificationTask,
+    model: MetalearningGraphBinaryClassificationTask,
     extra_data_to_store: Dict[str, Any] = {},
     quiet: bool = True,
 ) -> None:
@@ -76,9 +76,9 @@ def __metrics_from_batch_results(task_results: List[Dict[str, Any]]):
 
 
 def train_loop(
-    model: SplitLRGraphBinaryClassificationTask,
+    model: MetalearningGraphBinaryClassificationTask,
     train_data: Iterable[Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]],
-    valid_fn: Callable[[SplitLRGraphBinaryClassificationTask], float],
+    valid_fn: Callable[[MetalearningGraphBinaryClassificationTask], float],
     model_save_file: str,
     metric_to_use: MetricType = "avg_precision",
     max_num_epochs: int = 100,
@@ -126,7 +126,7 @@ def train_loop(
 
 
 def validate_on_data_iterable(
-    model: SplitLRGraphBinaryClassificationTask,
+    model: MetalearningGraphBinaryClassificationTask,
     data_iterable: Iterable[Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]],
     metric_to_use: MetricType = "avg_precision",
     quiet: bool = False,
@@ -141,7 +141,7 @@ def validate_on_data_iterable(
 
 
 def finetune_and_eval_on_task(
-    model: SplitLRGraphBinaryClassificationTask,
+    model: MetalearningGraphBinaryClassificationTask,
     model_weights: Dict[str, tf.Tensor],
     train_samples: List[MoleculeDatapoint],
     valid_samples: List[MoleculeDatapoint],
@@ -206,7 +206,7 @@ def finetune_and_eval_on_task(
 
 
 def eval_model_by_finetuning_on_task(
-    model: SplitLRGraphBinaryClassificationTask,
+    model: MetalearningGraphBinaryClassificationTask,
     model_weights: Dict[str, tf.Tensor],
     task: FSMolTask,
     train_set_sample_sizes: List[int],
@@ -284,7 +284,7 @@ def eval_model_by_finetuning_on_task(
 
 
 def eval_model_by_finetuning_on_tasks(
-    model: SplitLRGraphBinaryClassificationTask,
+    model: MetalearningGraphBinaryClassificationTask,
     model_weights: Dict[str, tf.Tensor],
     tasks: Iterable[FSMolTask],
     max_num_nodes_in_batch: int,
