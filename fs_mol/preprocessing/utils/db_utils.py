@@ -7,9 +7,7 @@ from typing import Dict, List
 import pandas as pd
 
 
-def read_db_config(
-    filename: str = "config.ini", section: str = "mysql"
-) -> Dict[str, str]:
+def read_db_config(filename: str = "config.ini", section: str = "mysql") -> Dict[str, str]:
     """
     Read database configuration file and return a dictionary object.
     Parameters:

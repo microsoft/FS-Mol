@@ -31,9 +31,7 @@ class BaseLogger:
         logger = logging.getLogger(self.__class__.__name__)
         if not logger.hasHandlers():
             handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                "[%(asctime)s:%(name)s:%(levelname)s] %(message)s"
-            )
+            formatter = logging.Formatter("[%(asctime)s:%(name)s:%(levelname)s] %(message)s")
             handler.setFormatter(formatter)
             logger.addHandler(handler)
         logger.setLevel(self._log_level)
@@ -122,9 +120,7 @@ class Standardizer(BaseLogger):
     def lfrag_chooser(self):
         """Return the LargestFragmentChooser object."""
         if self._lfrag_chooser is None:
-            self._lfrag_chooser = rdMolStandardize.LargestFragmentChooser(
-                self.params.preferOrganic
-            )
+            self._lfrag_chooser = rdMolStandardize.LargestFragmentChooser(self.params.preferOrganic)
         return self._lfrag_chooser
 
     @property
@@ -228,9 +224,7 @@ class Standardizer(BaseLogger):
                 return None, error
             n_tautomers = len(res)
             if hasattr(res, "status"):
-                completed = (
-                    res.status == rdMolStandardize.TautomerEnumeratorStatus.Completed
-                )
+                completed = res.status == rdMolStandardize.TautomerEnumeratorStatus.Completed
             else:
                 # we are still on the pre-2021 RDKit API
                 completed = len(res) < 1000
@@ -240,9 +234,7 @@ class Standardizer(BaseLogger):
                 mol_out = self.taut_enumerator.PickCanonical(res)
             except AttributeError:
                 # we are still on the pre-2021 RDKit API
-                mol_out = max(
-                    [(self.taut_enumerator.ScoreTautomer(m), m) for m in res]
-                )[1]
+                mol_out = max([(self.taut_enumerator.ScoreTautomer(m), m) for m in res])[1]
             except Exception as e:
                 # something else went wrong
                 error = f"canon_taut FAILED: {str(e).strip()}"

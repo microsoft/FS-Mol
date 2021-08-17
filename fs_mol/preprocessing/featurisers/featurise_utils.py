@@ -86,9 +86,7 @@ def get_featurizing_argparser():
     parser.add_argument(
         "--seed", dest="random_seed", type=int, default=0, help="Random seed to use."
     )
-    parser.add_argument(
-        "--debug", dest="debug", action="store_true", help="Enable debug routines."
-    )
+    parser.add_argument("--debug", dest="debug", action="store_true", help="Enable debug routines.")
     return parser
 
 
@@ -238,11 +236,7 @@ def _lazy_smiles_to_mols(
 
         for processed_datapoint in processed_smiles:
             if filter_failed and processed_datapoint["mol"] is None:
-                print(
-                    "W: Failed to process {} - dropping".format(
-                        processed_datapoint["SMILES"]
-                    )
-                )
+                print("W: Failed to process {} - dropping".format(processed_datapoint["SMILES"]))
             else:
                 yield processed_datapoint
 

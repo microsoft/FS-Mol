@@ -1,0 +1,21 @@
+[flake8]
+max-line-length = 100
+ignore =
+    # W605: invalid escape sequence -- triggered by pseudo-LaTeX in comments
+    W605,
+    # E203: whitespace before ':'
+    E203,
+    # E266: Too many leading '#' for block comment (E266)
+    E266,
+    # E501: Line too long -- triggered by comments and such. black deals with shortening.
+    E501,
+    # W503: Line break occurred before a binary operator -- comes out black
+    W503,
+    # E402: Module level import not at top of file -- triggered by python path manipulations
+    E402,
+    # E741:  Do not use variables named 'l', 'o', or 'i' -- disagree with PEP8
+    E741,
+    # F541:  f-string is missing placeholders  -- do not care
+    F541
+    # E402: Module level import not at top of file
+    E402

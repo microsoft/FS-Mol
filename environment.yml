@@ -1,0 +1,30 @@
+name: fsmol
+channels:
+  - rdkit
+  - defaults
+  - plotly
+  - pytorch
+dependencies:
+  - python==3.7.10
+  - pip=20.1.1  # See https://github.com/Azure/MachineLearningNotebooks/issues/1110 - using this specific pip works around ruamel.yaml not found error.
+  - rdkit==2020.09.1.0
+  - matplotlib
+  - numpy==1.19.2
+  - scikit-learn
+  - pandas
+  - seaborn
+  - tqdm
+  - typing-extensions
+  - tensorflow-gpu==2.1.0
+  - pytorch=1.8.1=py3.7_cuda10.1_cudnn7.6.3_0
+  - pip:
+      - docopt
+      - dpu-utils>=0.2.13
+      - tf2-gnn~=2.12.0
+      - more-itertools
+      - mysql-connector-python==8.0.17
+      - pyprojroot
+      - py-repo-root~=1.1.1
+      # torch-scatter and friends:
+      - -f https://pytorch-geometric.com/whl/torch-1.8.0+cu101.html
+      - torch-scatter

@@ -30,9 +30,7 @@ def save_element(element: Dict[str, Any], data_fh) -> None:
 
 # the assays to be saved here are not given the train-test-valid prefixes
 # that is assigned by an alternative file. Only the 'train' data is saved; which is all of the data.
-def save_assay_data(
-    featurised_data: FeaturisedData, assay_id: str, output_dir: str
-) -> None:
+def save_assay_data(featurised_data: FeaturisedData, assay_id: str, output_dir: str) -> None:
     os.makedirs(output_dir, exist_ok=True)
     for fold_name, data_fold in zip(
         ["train", "valid", "test"],
