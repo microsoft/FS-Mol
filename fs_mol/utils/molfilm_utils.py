@@ -2,7 +2,7 @@ import logging
 import os
 import time
 from functools import partial
-from metamol.models.interface import AbstractTorchModel
+from fs_mol.models.interface import AbstractTorchModel
 from typing import Any, Dict, Optional, Tuple, Type
 
 import torch

@@ -5,26 +5,26 @@ import numpy as np
 import tensorflow as tf
 from tf2_gnn.data.graph_dataset import GraphBatchTFDataDescription
 
-from metamol.data.metamol_dataset import NUM_EDGE_TYPES, NUM_NODE_FEATURES
-from metamol.data.metamol_batcher import MetamolBatcher, metamol_batch_finalizer
-from metamol.data.metamol_task import MoleculeDatapoint
+from fs_mol.data.fsmol_dataset import NUM_EDGE_TYPES, NUM_NODE_FEATURES
+from fs_mol.data.fsmol_batcher import FSMolBatcher, fsmol_batch_finalizer
+from fs_mol.data.fsmol_task import MoleculeDatapoint
 
 logger = logging.getLogger(__name__)
 
 
 def maml_batch_finalizer(batch_data: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    metamol_batch = metamol_batch_finalizer(batch_data)
+    fsmol_batch = fsmol_batch_finalizer(batch_data)
 
     batch_features = {
-        "node_features": metamol_batch.node_features,
-        "node_to_graph_map": metamol_batch.node_to_graph,
-        "num_graphs_in_batch": metamol_batch.num_graphs,
+        "node_features": fsmol_batch.node_features,
+        "node_to_graph_map": fsmol_batch.node_to_graph,
+        "num_graphs_in_batch": fsmol_batch.num_graphs,
     }
     for edge_type_idx in range(NUM_EDGE_TYPES):
-        batch_features[f"adjacency_list_{edge_type_idx}"] = metamol_batch.adjacency_lists[
+        batch_features[f"adjacency_list_{edge_type_idx}"] = fsmol_batch.adjacency_lists[
             edge_type_idx
         ]
-        batch_features[f"edge_features_{edge_type_idx}"] = metamol_batch.edge_features[
+        batch_features[f"edge_features_{edge_type_idx}"] = fsmol_batch.edge_features[
             edge_type_idx
         ]
 
@@ -35,7 +35,7 @@ def maml_batch_finalizer(batch_data: Dict[str, Any]) -> Tuple[Dict[str, Any], Di
     return batch_features, batch_labels
 
 
-class MetamolStubGraphDataset:
+class FSMolStubGraphDataset:
     def __init__(self):
         self._params = {"edge_features_dims": {}}
 
@@ -94,7 +94,7 @@ class TFGraphBatchIterable(Iterable[Tuple[Dict[str, Any], Dict[str, Any]]]):
         self._samples = samples
         self._shuffle = shuffle
 
-        self._batcher = MetamolBatcher(
+        self._batcher = FSMolBatcher(
             max_num_graphs=max_num_graphs,
             max_num_nodes=max_num_nodes,
             max_num_edges=max_num_edges,

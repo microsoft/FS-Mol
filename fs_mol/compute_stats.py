@@ -6,10 +6,10 @@ from typing import Any, Dict, Iterable, List, NamedTuple
 
 from rdkit import Chem
 
-from metamol.data.metamol_dataset import DataFold, MetamolDataset
-from metamol.data.metamol_task import MetamolTask, MoleculeDatapoint
-from metamol.utils.cli_utils import set_seed
-from metamol.utils.test_utils import add_data_cli_args, set_up_dataset
+from fs_mol.data.fsmol_dataset import DataFold, FSMolDataset
+from fs_mol.data.fsmol_task import FSMolTask, MoleculeDatapoint
+from fs_mol.utils.cli_utils import set_seed
+from fs_mol.utils.test_utils import add_data_cli_args, set_up_dataset
 
 
 class TaskData(NamedTuple):
@@ -50,7 +50,7 @@ def load_samples(samples: List[MoleculeDatapoint]) -> TaskData:
     )
 
 
-def load_fold_data(tasks: Iterable[MetamolTask]) -> List[TaskData]:
+def load_fold_data(tasks: Iterable[FSMolTask]) -> List[TaskData]:
     return [load_samples(task.samples) for task in tasks]
 
 
@@ -96,7 +96,7 @@ def compute_fold_overlap(data_1: List[TaskData], data_2: List[TaskData]) -> int:
     }
 
 
-def compute_dataset_stats(dataset: MetamolDataset) -> Dict[str, Any]:
+def compute_dataset_stats(dataset: FSMolDataset) -> Dict[str, Any]:
     print("Computing dataset statistics.")
     fold_data = {}
 

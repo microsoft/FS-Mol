@@ -10,12 +10,12 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
-from metamol.data.metamol_dataset import DataFold, MetamolDataset
-from metamol.data.protonet import ProtoNetBatch, get_protonet_task_sample_iterable
-from metamol.models.interface import AbstractTorchModel
-from metamol.models.protonet import PrototypicalNetwork, PrototypicalNetworkConfig
-from metamol.utils.metrics import BinaryEvalMetrics, compute_binary_task_metrics, avg_metrics_list
-from metamol.utils.metric_logger import MetricLogger
+from fs_mol.data.fsmol_dataset import DataFold, FSMolDataset
+from fs_mol.data.protonet import ProtoNetBatch, get_protonet_task_sample_iterable
+from fs_mol.models.interface import AbstractTorchModel
+from fs_mol.models.protonet import PrototypicalNetwork, PrototypicalNetworkConfig
+from fs_mol.utils.metrics import BinaryEvalMetrics, compute_binary_task_metrics, avg_metrics_list
+from fs_mol.utils.metric_logger import MetricLogger
 
 
 logger = logging.getLogger(__name__)
@@ -146,7 +146,7 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork, AbstractTorchModel[ProtoNe
         )
         return model
 
-    def train_loop(self, out_dir: str, dataset: MetamolDataset, aml_run=None):
+    def train_loop(self, out_dir: str, dataset: FSMolDataset, aml_run=None):
         self.save_model(os.path.join(out_dir, "best_validation.pt"))
 
         train_task_sample_iterator = iter(

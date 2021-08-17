@@ -6,16 +6,16 @@ import logging
 import numpy as np
 from dpu_utils.utils.richpath import RichPath
 
-from metamol.data import (
+from fs_mol.data import (
     DataFold,
-    MetamolDataset,
-    MetamolTask,
-    MetamolTaskSample,
-    MetamolBatch,
+    FSMolDataset,
+    FSMolTask,
+    FSMolTaskSample,
+    FSMolBatch,
     StratifiedTaskSampler,
-    MetamolBatcher,
+    FSMolBatcher,
     MoleculeDatapoint,
-    metamol_batch_finalizer,
+    fsmol_batch_finalizer,
 )
 
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class MoleculeProtoNetFeatures(MetamolBatch):
+class MoleculeProtoNetFeatures(FSMolBatch):
     fingerprints: np.ndarray  # [num_samples, FP_DIM]
     descriptors: np.ndarray  # [num_samples, DESC_DIM]
 
@@ -65,7 +65,7 @@ def batcher_add_sample_fn(batch_data: Dict[str, Any], sample_id: int, sample: Mo
 
 
 def batcher_finalizer_fn(batch_data: Dict[str, Any]) -> Tuple[MoleculeProtoNetFeatures, np.ndarray]:
-    plain_batch = metamol_batch_finalizer(batch_data)
+    plain_batch = fsmol_batch_finalizer(batch_data)
     return (
         MoleculeProtoNetFeatures(
             fingerprints=np.stack(batch_data["fingerprints"], axis=0),
@@ -77,7 +77,7 @@ def batcher_finalizer_fn(batch_data: Dict[str, Any]) -> Tuple[MoleculeProtoNetFe
 
 
 def task_sample_to_pn_task_sample(
-    task_sample: MetamolTaskSample, batcher: MetamolBatcher[MoleculeProtoNetFeatures, np.ndarray]
+    task_sample: FSMolTaskSample, batcher: FSMolBatcher[MoleculeProtoNetFeatures, np.ndarray]
 ) -> FeaturisedPNTaskSample:
     support_batches = list(batcher.batch(task_sample.train_samples))
     if len(support_batches) > 1:
@@ -117,7 +117,7 @@ def task_sample_to_pn_task_sample(
 
 
 def get_protonet_task_sample_iterable(
-    dataset: MetamolDataset,
+    dataset: FSMolDataset,
     data_fold: DataFold,
     num_samples: int,
     support_size: int,
@@ -130,7 +130,7 @@ def get_protonet_task_sample_iterable(
     task_sampler = StratifiedTaskSampler(
         train_size_or_ratio=support_size, test_size_or_ratio=query_size
     )
-    batcher = MetamolBatcher(
+    batcher = FSMolBatcher(
         max_num_graphs,
         max_num_nodes,
         max_num_edges,
@@ -142,7 +142,7 @@ def get_protonet_task_sample_iterable(
     def path_to_batches_pipeline(paths: List[RichPath], idx: int):
         if len(paths) > 1:
             raise ValueError()
-        task = MetamolTask.load_from_file(paths[0])
+        task = FSMolTask.load_from_file(paths[0])
         num_task_samples = 0
         for _ in range(num_samples):
             try:

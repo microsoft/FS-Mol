@@ -11,13 +11,13 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
-from metamol.data.metamol_dataset import DataFold, MetamolDataset
-from metamol.data.protonet import get_protonet_task_sample_iterable
-from metamol.models.protonet import PrototypicalNetwork
-from metamol.utils.protonet_utils import PrototypicalNetworkTrainer, run_on_batches
-from metamol.utils.molfilm_utils import resolve_starting_model_file
-from metamol.utils.test_utils import (
-    MetamolTaskSampleEvalResults,
+from fs_mol.data.fsmol_dataset import DataFold, FSMolDataset
+from fs_mol.data.protonet import get_protonet_task_sample_iterable
+from fs_mol.models.protonet import PrototypicalNetwork
+from fs_mol.utils.protonet_utils import PrototypicalNetworkTrainer, run_on_batches
+from fs_mol.utils.molfilm_utils import resolve_starting_model_file
+from fs_mol.utils.test_utils import (
+    FSMolTaskSampleEvalResults,
     write_csv_summary,
     add_eval_cli_args,
     set_up_test_run,
@@ -58,7 +58,7 @@ def parse_command_line():
 
 def test(
     model: PrototypicalNetwork,
-    dataset: MetamolDataset,
+    dataset: FSMolDataset,
     save_dir: str,
     context_sizes: List[int],
     target_size: Optional[int],
@@ -66,7 +66,7 @@ def test(
     seed: int,
     batch_size: int,
 ):
-    results: DefaultDict[str, List[MetamolTaskSampleEvalResults]] = defaultdict(list)
+    results: DefaultDict[str, List[FSMolTaskSampleEvalResults]] = defaultdict(list)
     for context_size in context_sizes:
         test_task_sample_iterator = get_protonet_task_sample_iterable(
             dataset=dataset,
@@ -91,7 +91,7 @@ def test(
                 f" Avg. prec. {result_metrics.avg_precision:.5f}.",
             )
             results[task_sample.task_name].append(
-                MetamolTaskSampleEvalResults(
+                FSMolTaskSampleEvalResults(
                     task_name=task_sample.task_name,
                     seed=seed + run_idx,
                     num_train=task_sample.num_support_samples,

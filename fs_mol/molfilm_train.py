@@ -18,36 +18,36 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
-from metamol.data import (
+from fs_mol.data import (
     NUM_EDGE_TYPES,
     NUM_NODE_FEATURES,
     DataFold,
-    MetamolBatcher,
-    MetamolTask,
-    MetamolBatchIterable,
+    FSMolBatcher,
+    FSMolTask,
+    FSMolBatchIterable,
     StratifiedTaskSampler,
     DatasetClassTooSmallException,
     DatasetTooSmallException,
     FoldTooSmallException,
 )
-from metamol.data.molfilm import (
-    MetamolMolFiLMBatch,
+from fs_mol.data.molfilm import (
+    FSMolMolFiLMBatch,
     MolFiLMTaskSampleBatchIterable,
     get_molfilm_inference_batcher,
 )
-from metamol.models.interface import AbstractTorchModel
-from metamol.models.mol_pred_model import MolPredConfig, MolPredModel, ThickGNNConfig, create_model
-from metamol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
-from metamol.utils.logging import PROGRESS_LOG_LEVEL, prefix_log_msgs
-from metamol.utils.metric_logger import MetricLogger
-from metamol.utils.metrics import (
+from fs_mol.models.interface import AbstractTorchModel
+from fs_mol.models.mol_pred_model import MolPredConfig, MolPredModel, ThickGNNConfig, create_model
+from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
+from fs_mol.utils.logging import PROGRESS_LOG_LEVEL, prefix_log_msgs
+from fs_mol.utils.metric_logger import MetricLogger
+from fs_mol.utils.metrics import (
     avg_metrics_list,
     compute_metrics,
     BinaryEvalMetrics,
     BinaryMetricType,
 )
-from metamol.utils.molfilm_utils import create_optimizer, save_model
-from metamol.utils.test_utils import MetamolTaskSampleEvalResults
+from fs_mol.utils.molfilm_utils import create_optimizer, save_model
+from fs_mol.utils.test_utils import FSMolTaskSampleEvalResults
 
 
 SMALL_NUMBER = 1e-7
@@ -61,7 +61,7 @@ MetricType = Union[BinaryMetricType, Literal["loss"]]
 
 def run_on_data_iterable(
     model: AbstractTorchModel,
-    data_iterable: Iterable[Tuple[MetamolMolFiLMBatch, np.ndarray]],
+    data_iterable: Iterable[Tuple[FSMolMolFiLMBatch, np.ndarray]],
     optimizer: Optional[torch.optim.Optimizer] = None,
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     max_num_steps: Optional[int] = None,
@@ -149,7 +149,7 @@ def run_on_data_iterable(
 
 def validate_on_data_iterable(
     model: AbstractTorchModel,
-    data_iterable: Iterable[Tuple[MetamolMolFiLMBatch, np.ndarray]],
+    data_iterable: Iterable[Tuple[FSMolMolFiLMBatch, np.ndarray]],
     metric_to_use: MetricType = "avg_precision",
     quiet: bool = False,
 ) -> float:
@@ -171,8 +171,8 @@ def validate_on_data_iterable(
 def eval_model_by_finetuning_on_task(
     model_weights_file: str,
     model_cls: Type[AbstractTorchModel],
-    task: MetamolTask,
-    batcher: MetamolBatcher,
+    task: FSMolTask,
+    batcher: FSMolBatcher,
     train_set_sample_sizes: List[int],
     test_set_size: Optional[int],
     num_samples: int,
@@ -184,8 +184,8 @@ def eval_model_by_finetuning_on_task(
     seed: int = 0,
     quiet: bool = False,
     device: Optional[torch.device] = None,
-) -> List[MetamolTaskSampleEvalResults]:
-    test_results: List[MetamolTaskSampleEvalResults] = []
+) -> List[FSMolTaskSampleEvalResults]:
+    test_results: List[FSMolTaskSampleEvalResults] = []
     for train_size in train_set_sample_sizes:
         task_sampler = StratifiedTaskSampler(
             train_size_or_ratio=train_size,
@@ -237,12 +237,12 @@ def eval_model_by_finetuning_on_task(
                     model=model,
                     optimizer=optimizer,
                     lr_scheduler=lr_scheduler,
-                    train_data=MetamolBatchIterable(
+                    train_data=FSMolBatchIterable(
                         task_sample.train_samples, batcher, shuffle=True, seed=seed + run_idx
                     ),
                     valid_fn=partial(
                         validate_on_data_iterable,
-                        data_iterable=MetamolBatchIterable(task_sample.valid_samples, batcher),
+                        data_iterable=FSMolBatchIterable(task_sample.valid_samples, batcher),
                         metric_to_use="loss",
                         quiet=quiet,
                     ),
@@ -262,7 +262,7 @@ def eval_model_by_finetuning_on_task(
                 model.load_model_weights(best_trained_model_file, load_task_specific_weights=True)
                 test_loss, _test_metrics = run_on_data_iterable(
                     model,
-                    data_iterable=MetamolBatchIterable(task_sample.test_samples, batcher),
+                    data_iterable=FSMolBatchIterable(task_sample.test_samples, batcher),
                     quiet=quiet,
                 )
                 test_metrics = next(iter(_test_metrics.values()))
@@ -278,7 +278,7 @@ def eval_model_by_finetuning_on_task(
                     f"Dataset sample test {metric_to_use}: {getattr(test_metrics, metric_to_use):.4f}",
                 )
                 test_results.append(
-                    MetamolTaskSampleEvalResults(
+                    FSMolTaskSampleEvalResults(
                         task_name=task.name,
                         seed=seed + run_idx,
                         num_train=train_size,
@@ -294,7 +294,7 @@ def eval_model_by_finetuning_on_task(
 
 def validate_by_finetuning_on_tasks(
     model: AbstractTorchModel,
-    tasks: Iterable[MetamolTask],
+    tasks: Iterable[FSMolTask],
     learning_rate: float,
     task_specific_learning_rate: float,
     batch_size: int = 128,
@@ -312,7 +312,7 @@ def validate_by_finetuning_on_tasks(
         model_device = model.device
         model = model.to(torch.device("cpu"))
 
-        task_to_results: Dict[str, List[MetamolTaskSampleEvalResults]] = {}
+        task_to_results: Dict[str, List[FSMolTaskSampleEvalResults]] = {}
         for task in tasks:
             task_metrics = eval_model_by_finetuning_on_task(
                 current_model_path,
@@ -345,7 +345,7 @@ def train_loop(
     model: AbstractTorchModel,
     optimizer: torch.optim.Optimizer,
     lr_scheduler: torch.optim.lr_scheduler._LRScheduler,
-    train_data: Iterable[Tuple[MetamolMolFiLMBatch, np.ndarray]],
+    train_data: Iterable[Tuple[FSMolMolFiLMBatch, np.ndarray]],
     valid_fn: Callable[[AbstractTorchModel], float],
     output_folder: str,
     metric_to_use: MetricType = "avg_precision",
@@ -588,18 +588,18 @@ def main():
 
     args = parser.parse_args()
 
-    out_dir, metamol_dataset, aml_run = set_up_train_run("MolFiLM", args, torch=True)
+    out_dir, fsmol_dataset, aml_run = set_up_train_run("MolFiLM", args, torch=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = make_model_from_args(
-        num_tasks=metamol_dataset.get_num_fold_tasks(DataFold.TRAIN), args=args, device=device
+        num_tasks=fsmol_dataset.get_num_fold_tasks(DataFold.TRAIN), args=args, device=device
     )
     logger.info(f"\tNum parameters {sum(p.numel() for p in model.parameters())}")
     logger.info(f"\tDevice: {device}")
     logger.info(f"\tModel:\n{model}")
 
     train_task_name_to_id = {
-        name: i for i, name in enumerate(metamol_dataset.get_task_names(data_fold=DataFold.TRAIN))
+        name: i for i, name in enumerate(fsmol_dataset.get_task_names(data_fold=DataFold.TRAIN))
     }
     if args.task_specific_lr is not None:
         task_specific_lr = args.task_specific_lr
@@ -617,7 +617,7 @@ def main():
     # Validation is done by finetuning on a bunch of tasks:
     valid_fn = partial(
         validate_by_finetuning_on_tasks,
-        tasks=metamol_dataset.get_task_reading_iterable(DataFold.VALIDATION),
+        tasks=fsmol_dataset.get_task_reading_iterable(DataFold.VALIDATION),
         learning_rate=args.finetune_lr_scale * args.learning_rate,
         task_specific_learning_rate=args.finetune_lr_scale * task_specific_lr,
         batch_size=args.batch_size,
@@ -631,7 +631,7 @@ def main():
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
         train_data=MolFiLMTaskSampleBatchIterable(
-            metamol_dataset,
+            fsmol_dataset,
             data_fold=DataFold.TRAIN,
             task_name_to_id=train_task_name_to_id,
             max_num_graphs=args.batch_size,

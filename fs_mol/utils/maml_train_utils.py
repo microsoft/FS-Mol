@@ -1,7 +1,7 @@
 import dataclasses
 import logging
 import itertools
-from metamol.data.metamol_task import MoleculeDatapoint
+from fs_mol.data.fsmol_task import MoleculeDatapoint
 import os
 import pickle
 import tempfile
@@ -14,23 +14,23 @@ import tensorflow as tf
 from tf2_gnn.cli_utils.model_utils import _get_name_to_variable_map, load_weights_verbosely
 from tf2_gnn.cli_utils.dataset_utils import get_model_file_path
 
-from metamol.data import (
-    MetamolTask,
+from fs_mol.data import (
+    FSMolTask,
     DatasetClassTooSmallException,
     DatasetTooSmallException,
     FoldTooSmallException,
     StratifiedTaskSampler,
 )
-from metamol.models.split_lr_graph_binary_classification import SplitLRGraphBinaryClassificationTask
-from metamol.utils.logging import PROGRESS_LOG_LEVEL, prefix_log_msgs, restrict_console_log_level
-from metamol.utils.metrics import (
+from fs_mol.models.split_lr_graph_binary_classification import SplitLRGraphBinaryClassificationTask
+from fs_mol.utils.logging import PROGRESS_LOG_LEVEL, prefix_log_msgs, restrict_console_log_level
+from fs_mol.utils.metrics import (
     BinaryEvalMetrics,
     BinaryMetricType,
     avg_metrics_list,
     compute_binary_task_metrics,
 )
-from metamol.utils.maml_data_utils import TFGraphBatchIterable
-from metamol.utils.test_utils import MetamolTaskSampleEvalResults
+from fs_mol.utils.maml_data_utils import TFGraphBatchIterable
+from fs_mol.utils.test_utils import FSMolTaskSampleEvalResults
 
 
 logger = logging.getLogger(__name__)
@@ -208,7 +208,7 @@ def finetune_and_eval_on_task(
 def eval_model_by_finetuning_on_task(
     model: SplitLRGraphBinaryClassificationTask,
     model_weights: Dict[str, tf.Tensor],
-    task: MetamolTask,
+    task: FSMolTask,
     train_set_sample_sizes: List[int],
     test_set_size: Optional[int],
     num_samples: int,
@@ -218,9 +218,9 @@ def eval_model_by_finetuning_on_task(
     patience: int = 10,
     seed: int = 0,
     quiet: bool = False,
-) -> Tuple[List[float], List[MetamolTaskSampleEvalResults]]:
+) -> Tuple[List[float], List[FSMolTaskSampleEvalResults]]:
     test_losses: List[float] = []
-    test_results: List[MetamolTaskSampleEvalResults] = []
+    test_results: List[FSMolTaskSampleEvalResults] = []
     for train_size in train_set_sample_sizes:
         task_sampler = StratifiedTaskSampler(
             train_size_or_ratio=train_size,
@@ -269,7 +269,7 @@ def eval_model_by_finetuning_on_task(
                 )
                 test_losses.append(test_loss)
                 test_results.append(
-                    MetamolTaskSampleEvalResults(
+                    FSMolTaskSampleEvalResults(
                         task_name=task.name,
                         seed=seed + run_idx,
                         num_train=train_size,
@@ -286,7 +286,7 @@ def eval_model_by_finetuning_on_task(
 def eval_model_by_finetuning_on_tasks(
     model: SplitLRGraphBinaryClassificationTask,
     model_weights: Dict[str, tf.Tensor],
-    tasks: Iterable[MetamolTask],
+    tasks: Iterable[FSMolTask],
     max_num_nodes_in_batch: int,
     metric_to_use: MetricType = "avg_precision",
     seed: int = 0,

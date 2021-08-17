@@ -84,7 +84,7 @@ class MoleculeDatapoint:
 
 
 @dataclass(frozen=True)
-class MetamolTask:
+class FSMolTask:
     name: str
     samples: List[MoleculeDatapoint]
 
@@ -93,7 +93,7 @@ class MetamolTask:
         return list(pos_samples), list(neg_samples)
 
     @staticmethod
-    def load_from_file(path: RichPath) -> "MetamolTask":
+    def load_from_file(path: RichPath) -> "FSMolTask":
         samples = []
         for raw_sample in path.read_by_file_suffix():
             graph_data = raw_sample.get("graph")
@@ -136,11 +136,11 @@ class MetamolTask:
                 )
             )
 
-        return MetamolTask(get_task_name_from_path(path), samples)
+        return FSMolTask(get_task_name_from_path(path), samples)
 
 
 @dataclass(frozen=True)
-class MetamolTaskSample:
+class FSMolTaskSample:
     name: str
     train_samples: List[MoleculeDatapoint]
     valid_samples: List[MoleculeDatapoint]

@@ -4,10 +4,10 @@ from typing_extensions import Literal
 import torch
 import torch.nn as nn
 
-from metamol.data.metamol_dataset import NUM_EDGE_TYPES, NUM_NODE_FEATURES
-from metamol.modules.thick_gnn import ThickGNN, ThickGNNConfig
-from metamol.modules.graph_readout import CombinedGraphReadout
-from metamol.data.protonet import ProtoNetBatch, MoleculeProtoNetFeatures
+from fs_mol.data.fsmol_dataset import NUM_EDGE_TYPES, NUM_NODE_FEATURES
+from fs_mol.modules.thick_gnn import ThickGNN, ThickGNNConfig
+from fs_mol.modules.graph_readout import CombinedGraphReadout
+from fs_mol.data.protonet import ProtoNetBatch, MoleculeProtoNetFeatures
 
 
 FINGERPRINT_DIM = 2048

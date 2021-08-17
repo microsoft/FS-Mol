@@ -10,12 +10,12 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
-from metamol.data import DataFold
-from metamol.data.molfilm import get_molfilm_inference_batcher
-from metamol.models.mol_pred_model import MolPredModel
-from metamol.molfilm_train import eval_model_by_finetuning_on_task
-from metamol.utils.molfilm_utils import resolve_starting_model_file
-from metamol.utils.test_utils import add_eval_cli_args, set_up_test_run, write_csv_summary
+from fs_mol.data import DataFold
+from fs_mol.data.molfilm import get_molfilm_inference_batcher
+from fs_mol.models.mol_pred_model import MolPredModel
+from fs_mol.molfilm_train import eval_model_by_finetuning_on_task
+from fs_mol.utils.molfilm_utils import resolve_starting_model_file
+from fs_mol.utils.test_utils import add_eval_cli_args, set_up_test_run, write_csv_summary
 
 
 logger = logging.getLogger(__name__)

@@ -9,17 +9,17 @@ from typing import Iterable, Tuple
 
 from dpu_utils.utils.richpath import RichPath
 
-from metamol.data.metamol_dataset import DataFold, MetamolDataset
-from metamol.utils.cli_utils import set_seed
-from metamol.utils.logging import set_up_logging
-from metamol.utils.metrics import BinaryEvalMetrics
+from fs_mol.data.fsmol_dataset import DataFold, FSMolDataset
+from fs_mol.utils.cli_utils import set_seed
+from fs_mol.utils.logging import set_up_logging
+from fs_mol.utils.metrics import BinaryEvalMetrics
 
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class MetamolTaskSampleEvalResults(BinaryEvalMetrics):
+class FSMolTaskSampleEvalResults(BinaryEvalMetrics):
     task_name: str
     seed: int
     num_train: int
@@ -93,18 +93,18 @@ def set_up_dataset(args: argparse.Namespace, **kwargs):
         assert (
             len(args.DATA_PATH) == 1
         ), "DATA_PATH argument should be directory only if task_file_list arg is passed."
-        return MetamolDataset.from_task_split_file(args.DATA_PATH[0], args.task_file_list, **kwargs)
+        return FSMolDataset.from_task_split_file(args.DATA_PATH[0], args.task_file_list, **kwargs)
     else:
-        return MetamolDataset(
+        return FSMolDataset(
             test_data_paths=[RichPath.create(p) for p in args.DATA_PATH], **kwargs
         )
 
 
 def set_up_test_run(
     model_name: str, args: argparse.Namespace, torch: bool = False, tf: bool = False
-) -> Tuple[str, MetamolDataset]:
+) -> Tuple[str, FSMolDataset]:
     set_seed(args.seed, torch=torch, tf=tf)
-    run_name = f"Metamol_Eval_{model_name}_{time.strftime('%Y-%m-%d_%H-%M-%S')}"
+    run_name = f"FSMol_Eval_{model_name}_{time.strftime('%Y-%m-%d_%H-%M-%S')}"
     out_dir = os.path.join(args.save_dir, run_name)
     os.makedirs(out_dir, exist_ok=True)
     set_up_logging(os.path.join(out_dir, f"{run_name}.log"))
@@ -119,7 +119,7 @@ def set_up_test_run(
     return out_dir, dataset
 
 
-def write_csv_summary(output_csv_file: str, test_results: Iterable[MetamolTaskSampleEvalResults]):
+def write_csv_summary(output_csv_file: str, test_results: Iterable[FSMolTaskSampleEvalResults]):
     with open(output_csv_file, "w", newline="") as csv_file:
         fieldnames = [
             "num_train_requested",

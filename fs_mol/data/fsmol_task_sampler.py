@@ -5,7 +5,7 @@ from typing import Union, Tuple, Optional
 import numpy as np
 from sklearn.model_selection import StratifiedShuffleSplit
 
-from metamol.data.metamol_task import MetamolTask, MetamolTaskSample
+from fs_mol.data.fsmol_task import FSMolTask, FSMolTaskSample
 
 
 logger = logging.getLogger(__name__)
@@ -94,7 +94,7 @@ class TaskSampler(ABC):
     """
 
     @abstractmethod
-    def sample(self, task: MetamolTask, seed: int = 0) -> MetamolTaskSample:
+    def sample(self, task: FSMolTask, seed: int = 0) -> FSMolTaskSample:
         """Split the given task into train/valid/test, with the contract that results
         remain the same if you provide the same seed.
         """
@@ -173,7 +173,7 @@ class RandomTaskSampler(TaskSampler):
         self._test_size_or_ratio = test_size_or_ratio
         self._allow_smaller_test = allow_smaller_test
 
-    def sample(self, task: MetamolTask, seed: int = 0) -> MetamolTaskSample:
+    def sample(self, task: FSMolTask, seed: int = 0) -> FSMolTaskSample:
         rng = np.random.Generator(np.random.PCG64(seed=seed))
         # Make a copy of the samples that we can permute:
         samples = list(task.samples)
@@ -200,7 +200,7 @@ class RandomTaskSampler(TaskSampler):
                 num_test=num_test,
             )
 
-        return MetamolTaskSample(
+        return FSMolTaskSample(
             name=task.name,
             train_samples=samples[:num_train],
             valid_samples=samples[num_train : num_train + num_valid],
@@ -245,7 +245,7 @@ class BalancedTaskSampler(TaskSampler):
         self._test_size_or_ratio = test_size_or_ratio
         self._allow_smaller_test = allow_smaller_test
 
-    def sample(self, task: MetamolTask, seed: int = 0) -> MetamolTaskSample:
+    def sample(self, task: FSMolTask, seed: int = 0) -> FSMolTaskSample:
         rng = np.random.Generator(np.random.PCG64(seed=seed))
         pos_samples, neg_samples = task.get_pos_neg_separated()
 
@@ -284,7 +284,7 @@ class BalancedTaskSampler(TaskSampler):
                 num_class_samples=len(neg_samples),
             )
 
-        return MetamolTaskSample(
+        return FSMolTaskSample(
             train_samples=pos_samples[: num_train // 2] + neg_samples[: num_train // 2],
             valid_samples=(
                 pos_samples[num_train // 2 : num_train // 2 + num_valid // 2]
@@ -330,7 +330,7 @@ class StratifiedTaskSampler(TaskSampler):
         self._test_size_or_ratio = test_size_or_ratio
         self._allow_smaller_test = allow_smaller_test
 
-    def sample(self, task: MetamolTask, seed: int = 0) -> MetamolTaskSample:
+    def sample(self, task: FSMolTask, seed: int = 0) -> FSMolTaskSample:
         # Just defer to the sklearn splitter:
         pos_samples, neg_samples = task.get_pos_neg_separated()
         num_neg_samples = len(neg_samples)
@@ -430,7 +430,7 @@ class StratifiedTaskSampler(TaskSampler):
                 num_test=len(test_samples),
             )
 
-        return MetamolTaskSample(
+        return FSMolTaskSample(
             name=task.name,
             train_samples=train_samples,
             valid_samples=valid_samples,

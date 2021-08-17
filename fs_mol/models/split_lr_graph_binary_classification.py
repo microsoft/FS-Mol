@@ -7,7 +7,7 @@ from tf2_gnn.data import GraphDataset
 from tf2_gnn.models import GraphBinaryClassificationTask
 from tf2_gnn.utils.polynomial_warmup_and_decay_schedule import PolynomialWarmupAndDecaySchedule
 
-from metamol.utils.metrics import BinaryEvalMetrics, compute_binary_task_metrics
+from fs_mol.utils.metrics import BinaryEvalMetrics, compute_binary_task_metrics
 
 
 SMALL_NUMBER = 1e-7
