@@ -12,7 +12,7 @@ from typing import Tuple, Dict, Any, List
 import mysql.connector
 from mysql.connector import Error
 
-from preprocessing.utils.db_utils import read_db_config, read_assay_list
+from preprocessing.utils.db_utils import read_db_config
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +37,7 @@ def get_confidence_scores(cursor, output_dir: str) -> Tuple[str, str]:
     With an open database cursor, query for the meanings of the
     confidence scores and save out to a csv.
     """
-    query = (
-        "select csl.confidence_score, csl.description "
-        "from confidence_score_lookup as csl;"
-    )
+    query = "select csl.confidence_score, csl.description " "from confidence_score_lookup as csl;"
     cursor.execute(query)
     score_rows = cursor.fetchall()
     print(score_rows)

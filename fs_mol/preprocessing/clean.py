@@ -279,11 +279,7 @@ def clean_assay(
     try:
         target_id = df.iloc[0]["target_id"] if "target_id" in df.columns else None
 
-        organism = (
-            None
-            if df.iloc[0]["assay_organism"] == "nan"
-            else df.iloc[0]["assay_organism"]
-        )
+        organism = None if df.iloc[0]["assay_organism"] == "nan" else df.iloc[0]["assay_organism"]
         assay_dict = {
             "chembl_id": assay,
             "target_id": target_id,
