@@ -1,12 +1,12 @@
 """
 Script to featurize ChEMBL assays.
 
-Each assay should consist of a separate csv file with fields for the smiles, molecule id, 
-assay id and binary activity label. 
+Each assay should consist of a separate csv file with fields for the smiles, molecule id,
+assay id and binary activity label.
 
 Expected csv fields are given in CHEMBL_CSV_FORMAT
 
-This also requires a metadata.pkl.gz with molecule featurizers 
+This also requires a metadata.pkl.gz with molecule featurizers
 to allow graph featurization with pre-specified feature set.
 
 train-test-splits are not performed within individual assays.
@@ -17,7 +17,6 @@ import logging
 import pandas as pd
 from glob import glob
 from typing import List
-from pathlib import Path
 
 from dpu_utils.utils import run_and_debug, RichPath
 
@@ -32,9 +31,7 @@ from preprocessing.utils.save_utils import (
 )
 
 
-logging.basicConfig(
-    filename="featurisation.log", format="%(asctime)s %(message)s", filemode="w"
-)
+logging.basicConfig(filename="featurisation.log", format="%(asctime)s %(message)s", filemode="w")
 
 logger = logging.getLogger(__name__)
 
@@ -82,9 +79,7 @@ def filter_assays(summary: str, args) -> List[str]:
 
     # please note this syntax breaks if pandas version < 1.2.4
     if args.sapiens_only:
-        sdf = sdf.loc[
-            sdf["assay_organism"].str.contains("sapiens", regex=False, na=False)
-        ]
+        sdf = sdf.loc[sdf["assay_organism"].str.contains("sapiens", regex=False, na=False)]
 
     return sdf["chembl_id"].tolist()
 
@@ -152,9 +147,7 @@ def run(args):
             )
             logger.info(f"Completed featurization; saving data now.")
 
-            save_assay_data(
-                featurised_data, assay_id=filename, output_dir=args.OUTPUT_DIR
-            )
+            save_assay_data(featurised_data, assay_id=filename, output_dir=args.OUTPUT_DIR)
 
         except IndexError:
             assay = datapoints[0]["Assay_ID"]

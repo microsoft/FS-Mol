@@ -30,9 +30,7 @@ CHEMBL_ASSAY_PROTEIN = (
 )
 
 DISTINCT_TABLES = {
-    "activity_comment": (
-        "SELECT DISTINCT d.chembl_id, d.activity_comment FROM ({}) as d;"
-    ),
+    "activity_comment": ("SELECT DISTINCT d.chembl_id, d.activity_comment FROM ({}) as d;"),
     "standard_unit": ("SELECT DISTINCT d.chembl_id, d.standard_units FROM ({}) as d;"),
     "target_id": ("SELECT DISTINCT  d.chembl_id, d.target_id FROM ({}) as d;"),
     "protein_class_level": (

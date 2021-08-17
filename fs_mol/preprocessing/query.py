@@ -26,9 +26,7 @@ from preprocessing.utils.queries import (
 )
 from preprocessing.initial_query import run_initial_query
 
-logging.basicConfig(
-    filename="querying.log", format="%(asctime)s %(message)s", filemode="w"
-)
+logging.basicConfig(filename="querying.log", format="%(asctime)s %(message)s", filemode="w")
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +78,7 @@ def run_query_on_assay(
             with open(os.path.join(output_dir, "failed_all_queries.txt"), "a") as f:
                 f.writelines([f"{assay}"])
         else:
-            logger.info(
-                f"Queried without protein information, saving {len(rows)} to {filename}."
-            )
+            logger.info(f"Queried without protein information, saving {len(rows)} to {filename}.")
             fieldnames = FIELDNAMES.copy()
             fieldnames.extend(CELL_FIELDS)
             with open(filename, "w") as f:

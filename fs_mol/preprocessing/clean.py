@@ -1,27 +1,25 @@
 """
-Cleaning ChEMBL assays. 
+Cleaning ChEMBL assays.
 
 There are three cleaning functions:
 
 1. select_assays -- we currently accept only inhibition and XC50-type measurements
 
-2. standardization -- SMILES are standardized, we convert XC50 measurements to -log10([C]/nM). 
-Duplicates are dropped if they are identical, or if they differ by a large amount. 
+2. standardization -- SMILES are standardized, we convert XC50 measurements to -log10([C]/nM).
+Duplicates are dropped if they are identical, or if they differ by a large amount.
 
-3. (Optional) -- thresholding. We current implement two thresholding mechanisms: 
+3. (Optional) -- thresholding. We current implement two thresholding mechanisms:
 fixed and autothreshold. Fixed applies pKX = 5/ 50% as a threshold, autothreshold finds
-the median of the data and accepts it as a threshold provided it is in the range pKI 4-6 
+the median of the data and accepts it as a threshold provided it is in the range pKI 4-6
 or 5-7 for enzymes. For specific tasks in a different phase of drug discovery we recommend
-implementing a hand-tuned threshold. 
+implementing a hand-tuned threshold.
 
-This script can be run 
-The cleaning functions applied can be controlled with start_step and stop_step args, 
-where the functions are available via the CLEANING_STEPS dictionary. 
+The cleaning functions applied can be controlled with start_step and stop_step args,
+where the functions are available via the CLEANING_STEPS dictionary.
 
 """
 import os
 import csv
-import json
 import logging
 import pandas as pd
 import numpy as np
@@ -140,11 +138,7 @@ def apply_thresholds(
     if hard_only:
         df = df[df.activity_string.isin(["active", "inactive"])]
     else:
-        df = df[
-            df.activity_string.isin(
-                ["active", "inactive", "weak active", "weak inactive"]
-            )
-        ]
+        df = df[df.activity_string.isin(["active", "inactive", "weak active", "weak inactive"])]
 
     df.loc[df["activity_string"] == "active", "activity"] = 1.0
     df.loc[df["activity_string"] == "weak active", "activity"] = 1.0
@@ -340,9 +334,7 @@ def process_all_assays(
                             )
 
                             target_id = (
-                                df.iloc[0]["target_id"]
-                                if "target_id" in df.columns
-                                else None
+                                df.iloc[0]["target_id"] if "target_id" in df.columns else None
                             )
 
                             organism = (
@@ -373,9 +365,7 @@ def process_all_assays(
                                 assay_dict.update(
                                     {
                                         "max_num_atoms": df.iloc[0]["max_num_atoms"],
-                                        "max_mol_weight": df.iloc[0][
-                                            "max_molecular_weight"
-                                        ],
+                                        "max_mol_weight": df.iloc[0]["max_molecular_weight"],
                                     }
                                 )
                             if step >= 2:
@@ -384,9 +374,7 @@ def process_all_assays(
                                     {
                                         "threshold": df.iloc[0]["threshold"],
                                         "num_pos": df["activity"].sum(),
-                                        "percentage_pos": df["activity"].sum()
-                                        * 100
-                                        / len(df),
+                                        "percentage_pos": df["activity"].sum() * 100 / len(df),
                                     }
                                 )
                         else:
@@ -452,9 +440,7 @@ def clean_directory(args):
 
     files_to_process = get_files_to_process(input_dir, output_dir)
 
-    process_all_assays(
-        files_to_process, output_dir, basepath, args.start_step, args.stop_step
-    )
+    process_all_assays(files_to_process, output_dir, basepath, args.start_step, args.stop_step)
 
 
 def run():

@@ -20,9 +20,7 @@ from preprocessing.clean import (
 @pytest.fixture
 def raw_dataset():
 
-    return pd.read_csv(
-        os.path.join(os.path.dirname(__file__), "datasets/CHEMBL1002396_raw.csv")
-    )
+    return pd.read_csv(os.path.join(os.path.dirname(__file__), "datasets/CHEMBL1002396_raw.csv"))
 
 
 @pytest.fixture

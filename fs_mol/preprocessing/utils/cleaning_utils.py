@@ -1,11 +1,10 @@
 """
-A set of utils to clean assays taken from ChEMBL, used in 
+A set of utils to clean assays taken from ChEMBL, used in
 preprocessing/cleaning.py
 
 """
 
 import math
-import logging
 import numpy as np
 import pandas as pd
 from typing import Optional, Tuple, Callable
@@ -68,11 +67,7 @@ def activity_threshold(x: float, threshold: float, buffer: float = 0.5) -> str:
     # note: standard relations apply to standard value not log standard
     if val >= (threshold + buffer):
         return "active"
-    elif (
-        val > threshold
-        and val < (threshold + buffer)
-        and relation in relation_set_lessthan
-    ):
+    elif val > threshold and val < (threshold + buffer) and relation in relation_set_lessthan:
         return "active"
     elif (
         val > threshold
@@ -86,11 +81,7 @@ def activity_threshold(x: float, threshold: float, buffer: float = 0.5) -> str:
         and relation in relation_set_lessthan.union(relation_equals)
     ):
         return "weak inactive"
-    elif (
-        val > (threshold - buffer)
-        and val <= threshold
-        and relation in relation_set_morethan
-    ):
+    elif val > (threshold - buffer) and val <= threshold and relation in relation_set_morethan:
         return "inactive"
     elif val <= (threshold - buffer):
         return "inactive"
@@ -111,11 +102,7 @@ def inhibition_threshold(x: float, threshold: float, buffer: float = 5.0) -> str
     # not log standard values
     if val >= (threshold + buffer):
         return "active"
-    elif (
-        val > threshold
-        and val < (threshold + buffer)
-        and relation in relation_set_morethan
-    ):
+    elif val > threshold and val < (threshold + buffer) and relation in relation_set_morethan:
         return "active"
     elif (
         val > threshold
@@ -129,11 +116,7 @@ def inhibition_threshold(x: float, threshold: float, buffer: float = 5.0) -> str
         and relation in relation_set_morethan.union(relation_equals)
     ):
         return "weak inactive"
-    elif (
-        val > (threshold - buffer)
-        and val <= threshold
-        and relation in relation_set_lessthan
-    ):
+    elif val > (threshold - buffer) and val <= threshold and relation in relation_set_lessthan:
         return "inactive"
     elif val <= (threshold - buffer):
         return "inactive"
@@ -179,9 +162,7 @@ def autothreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:
         # use as a threshold provided it is in a sensible
         # range. This was chosen as pKI 4-6 in general, 5-7 for enzymes
         if "protein_class_desc" in df.columns:
-            if any(
-                ("enzyme" in x) or ("ase" in x) for x in df.protein_class_desc.values
-            ):
+            if any(("enzyme" in x) or ("ase" in x) for x in df.protein_class_desc.values):
                 threshold_limits = (5, 7)
             else:
                 threshold_limits = (4, 6)
@@ -191,9 +172,7 @@ def autothreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:
         if median < threshold_limits[0] or median > threshold_limits[1]:
             median = 5.0
 
-        df["activity_string"] = df.apply(
-            activity_threshold, args=(median,), buffer=buffer, axis=1
-        )
+        df["activity_string"] = df.apply(activity_threshold, args=(median,), buffer=buffer, axis=1)
 
     return df, median
 
@@ -212,9 +191,7 @@ def fixedthreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:
     # % inhibition measurements don't have log standard measurement
     if df.iloc[0]["standard_units"] == "%":
         threshold = 50.0
-        df["activity_string"] = df.apply(
-            inhibition_threshold, args=(threshold,), axis=1
-        )
+        df["activity_string"] = df.apply(inhibition_threshold, args=(threshold,), axis=1)
 
     else:
         threshold = 5.0
@@ -243,9 +220,7 @@ def get_duplicated_rows(
     # stitch the results back together (here would use if eg. obviously different measurements/ proteins)
     if block_by is not None:
         blocks = df.groupby(block_by).apply(
-            lambda g: get_duplicated_rows(
-                df=g, comparison_fn=comparison_fn, max_size=max_size
-            )
+            lambda g: get_duplicated_rows(df=g, comparison_fn=comparison_fn, max_size=max_size)
         )
 
         keys = blocks.index.unique(block_by)
@@ -290,11 +265,7 @@ def get_duplicated_rows(
         records = np.delete(records, indexes)
 
     return pd.Series(
-        {
-            idx: partition_id
-            for partition_id, idxs in enumerate(partitions)
-            for idx in idxs
-        }
+        {idx: partition_id for partition_id, idxs in enumerate(partitions) for idx in idxs}
     )
 
 
@@ -336,9 +307,7 @@ def remove_far_duplicates(x: pd.DataFrame):
     return df
 
 
-def standardize_smiles(
-    x: pd.DataFrame, taut_canonicalization: bool = True
-) -> pd.DataFrame:
+def standardize_smiles(x: pd.DataFrame, taut_canonicalization: bool = True) -> pd.DataFrame:
 
     """
     Standardization of a SMILES string.
@@ -357,7 +326,7 @@ def standardize_smiles(
             num_atoms = mol.GetNumAtoms()
             standardized_mol, _ = sm.standardize_mol(mol)
             return Chem.MolToSmiles(standardized_mol), mol_weight, num_atoms
-        except Exception as e:
+        except Exception:
             # return a fail as None (downstream filtering)
             return None
 

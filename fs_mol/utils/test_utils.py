@@ -95,9 +95,7 @@ def set_up_dataset(args: argparse.Namespace, **kwargs):
         ), "DATA_PATH argument should be directory only if task_file_list arg is passed."
         return FSMolDataset.from_task_split_file(args.DATA_PATH[0], args.task_file_list, **kwargs)
     else:
-        return FSMolDataset(
-            test_data_paths=[RichPath.create(p) for p in args.DATA_PATH], **kwargs
-        )
+        return FSMolDataset(test_data_paths=[RichPath.create(p) for p in args.DATA_PATH], **kwargs)
 
 
 def set_up_test_run(
