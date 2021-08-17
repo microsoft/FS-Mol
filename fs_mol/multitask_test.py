@@ -11,10 +11,10 @@ from pyprojroot import here as project_root
 sys.path.insert(0, str(project_root()))
 
 from fs_mol.data import DataFold
-from fs_mol.data.molfilm import get_molfilm_inference_batcher
-from fs_mol.models.mol_pred_model import MolPredModel
-from fs_mol.molfilm_train import eval_model_by_finetuning_on_task
-from fs_mol.utils.molfilm_utils import resolve_starting_model_file
+from fs_mol.data.multitask import get_multitask_inference_batcher
+from fs_mol.models.gnn_multitask import GNNMultitaskModel
+from fs_mol.multitask_train import eval_model_by_finetuning_on_task
+from fs_mol.utils.multitask_utils import resolve_starting_model_file
 from fs_mol.utils.test_utils import add_eval_cli_args, set_up_test_run, write_csv_summary
 
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def parse_command_line():
     parser = argparse.ArgumentParser(
-        description="Test finetuning a MolFiLM GNN model on tasks.",
+        description="Test finetuning a GNN Multitask model on tasks.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -64,13 +64,13 @@ def parse_command_line():
 
 def main():
     args = parse_command_line()
-    out_dir, dataset = set_up_test_run("MolFiLM", args, torch=True)
+    out_dir, dataset = set_up_test_run("Multitask", args, torch=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model_weights_file = resolve_starting_model_file(
         model_file=args.TRAINED_MODEL,
-        model_cls=MolPredModel,
+        model_cls=GNNMultitaskModel,
         out_dir=out_dir,
         use_fresh_param_init=args.use_fresh_param_init,
         config_overrides={"num_tasks": 1},
@@ -80,9 +80,9 @@ def main():
     for task in dataset.get_task_reading_iterable(DataFold.TEST):
         test_results = eval_model_by_finetuning_on_task(
             model_weights_file,
-            model_cls=MolPredModel,
+            model_cls=GNNMultitaskModel,
             task=task,
-            batcher=get_molfilm_inference_batcher(max_num_graphs=args.batch_size),
+            batcher=get_multitask_inference_batcher(max_num_graphs=args.batch_size),
             train_set_sample_sizes=args.train_sizes,
             test_set_size=None,
             num_samples=args.num_runs,

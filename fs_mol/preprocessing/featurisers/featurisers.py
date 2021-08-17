@@ -1,6 +1,6 @@
 """
 Featuriser classes for containing vocabularies and performing featurisation
-on individual atoms from an rdkit Mol. 
+on individual atoms from an rdkit Mol.
 """
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -57,9 +57,7 @@ class AtomFeatureExtractor(ABC):
 
     def _assert_metadata_uninitialised(self) -> None:
         if self.metadata_initialised:
-            raise ValueError(
-                f"Trying to modify metadata of FeatureExtractor with frozen metadata."
-            )
+            raise ValueError(f"Trying to modify metadata of FeatureExtractor with frozen metadata.")
 
     def mark_metadata_initialised(self) -> None:
         self._metadata_initialised = True
@@ -352,9 +350,7 @@ class AtomRingInformationExtractor(AtomFeatureExtractor):
         features[0] = float(atom.IsInRing())
 
         if self._encode_ring_sizes:
-            for ring_size in range(
-                self.MIN_RING_SIZE_TO_CONSIDER, self.MAX_RING_SIZE_TO_CONSIDER
-            ):
+            for ring_size in range(self.MIN_RING_SIZE_TO_CONSIDER, self.MAX_RING_SIZE_TO_CONSIDER):
                 if atom.IsInRingSize(ring_size):
                     features[1 + ring_size - self.MIN_RING_SIZE_TO_CONSIDER] = 1.0
 

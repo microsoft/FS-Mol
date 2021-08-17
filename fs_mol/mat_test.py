@@ -25,8 +25,8 @@ from fs_mol.data import (
     default_reader_fn,
 )
 from fs_mol.models.interface import AbstractTorchModel
-from fs_mol.molfilm_train import eval_model_by_finetuning_on_task
-from fs_mol.utils.molfilm_utils import resolve_starting_model_file
+from fs_mol.multitask_train import eval_model_by_finetuning_on_task
+from fs_mol.utils.multitask_utils import resolve_starting_model_file
 from fs_mol.utils.test_utils import add_eval_cli_args, set_up_test_run, write_csv_summary
 
 from featurization.data_utils import construct_dataset, load_data_from_smiles, mol_collate_func

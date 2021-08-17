@@ -15,7 +15,7 @@ from fs_mol.data.fsmol_dataset import DataFold, FSMolDataset
 from fs_mol.data.protonet import get_protonet_task_sample_iterable
 from fs_mol.models.protonet import PrototypicalNetwork
 from fs_mol.utils.protonet_utils import PrototypicalNetworkTrainer, run_on_batches
-from fs_mol.utils.molfilm_utils import resolve_starting_model_file
+from fs_mol.utils.multitask_utils import resolve_starting_model_file
 from fs_mol.utils.test_utils import (
     FSMolTaskSampleEvalResults,
     write_csv_summary,

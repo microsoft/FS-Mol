@@ -1,6 +1,5 @@
 import os
 import sys
-import pandas as pd
 import pytest
 from typing import Dict
 
@@ -21,9 +20,7 @@ def input_file():
 @pytest.fixture
 def feature_file():
 
-    return os.path.join(
-        os.path.dirname(__file__), "datasets/processed/CHEMBL1001235.jsonl.gz"
-    )
+    return os.path.join(os.path.dirname(__file__), "datasets/processed/CHEMBL1001235.jsonl.gz")
 
 
 @pytest.fixture
@@ -48,9 +45,7 @@ def metadata():
     return metadata["feature_extractors"]
 
 
-def test_featurise(
-    input_file: str, chembl_csv_format: Dict[str, str], feature_file: str, metadata
-):
+def test_featurise(input_file: str, chembl_csv_format: Dict[str, str], feature_file: str, metadata):
 
     datapoints = load_csv_assay_data(
         input_file,

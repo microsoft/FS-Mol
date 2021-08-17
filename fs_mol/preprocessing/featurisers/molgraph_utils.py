@@ -57,12 +57,9 @@ def featurise_atoms(
 
     all_atom_features = []
 
-    for atom_id, atom in enumerate(mol.GetAtoms()):
-        atom_symbol = get_atom_symbol(atom)
-
+    for atom in mol.GetAtoms():
         atom_features = [
-            atom_featuriser.featurise(atom)
-            for atom_featuriser in atom_feature_extractors
+            atom_featuriser.featurise(atom) for atom_featuriser in atom_feature_extractors
         ]
 
         atom_features = np.concatenate(atom_features).astype(np.float32)
@@ -150,9 +147,7 @@ def molecule_to_adjacency_lists(mol: Mol) -> List[List[Tuple[int, int]]]:
     bonds = mol.GetBonds()
     for bond in bonds:
         bond_type_idx = BOND_DICT[str(bond.GetBondType())]
-        adjacency_lists[bond_type_idx].append(
-            (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
-        )
+        adjacency_lists[bond_type_idx].append((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()))
     return adjacency_lists
 
 

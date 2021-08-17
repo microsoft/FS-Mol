@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 from fs_mol.data.fsmol_dataset import NUM_EDGE_TYPES, NUM_NODE_FEATURES
-from fs_mol.modules.thick_gnn import ThickGNN, ThickGNNConfig
+from fs_mol.modules.gnn import GNN, GNNConfig
 from fs_mol.modules.graph_readout import CombinedGraphReadout
 from fs_mol.data.protonet import ProtoNetBatch, MoleculeProtoNetFeatures
 
@@ -17,7 +17,7 @@ PHYS_CHEM_DESCRIPTORS_DIM = 42
 @dataclass(frozen=True)
 class PrototypicalNetworkConfig:
     # Model configuration:
-    gnn_config: ThickGNNConfig = ThickGNNConfig(
+    gnn_config: GNN = GNNConfig(
         type="PNA",
         hidden_dim=64,
         num_edge_types=NUM_EDGE_TYPES,
@@ -26,8 +26,6 @@ class PrototypicalNetworkConfig:
         intermediate_dim=512,
         message_function_depth=1,
         num_layers=8,
-        use_msg_film=False,
-        use_msg_att_film=False,
     )
     gnn_feature_dim: int = 512
     used_features: Literal[
@@ -37,7 +35,7 @@ class PrototypicalNetworkConfig:
 
 
 class GraphFeatureExtractor(nn.Module):
-    def __init__(self, gnn_config: ThickGNNConfig, embedding_dim: int):
+    def __init__(self, gnn_config: GNNConfig, embedding_dim: int):
         super().__init__()
 
         readout_node_dim = (gnn_config.num_layers + 1) * gnn_config.hidden_dim
@@ -46,7 +44,7 @@ class GraphFeatureExtractor(nn.Module):
             out_features=gnn_config.hidden_dim,
             bias=False,
         )
-        self.gnn = ThickGNN(gnn_config)
+        self.gnn = GNN(gnn_config)
         self.readout_layer = CombinedGraphReadout(
             node_dim=readout_node_dim,
             out_dim=embedding_dim,

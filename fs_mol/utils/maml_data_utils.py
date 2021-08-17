@@ -24,9 +24,7 @@ def maml_batch_finalizer(batch_data: Dict[str, Any]) -> Tuple[Dict[str, Any], Di
         batch_features[f"adjacency_list_{edge_type_idx}"] = fsmol_batch.adjacency_lists[
             edge_type_idx
         ]
-        batch_features[f"edge_features_{edge_type_idx}"] = fsmol_batch.edge_features[
-            edge_type_idx
-        ]
+        batch_features[f"edge_features_{edge_type_idx}"] = fsmol_batch.edge_features[edge_type_idx]
 
     batch_labels = {
         "target_value": np.stack(batch_data["bool_labels"], axis=0).astype(np.float32),
