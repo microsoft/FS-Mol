@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from abc import abstractclassmethod, abstractmethod
 from typing import Any, Dict, Generic, Optional, TypeVar
 
@@ -41,6 +39,6 @@ class AbstractTorchModel(Generic[BatchType], nn.Module):
         config_overrides: Dict[str, Any] = {},
         quiet: bool = False,
         device: Optional[torch.device] = None,
-    ) -> AbstractTorchModel:
+    ) -> "AbstractTorchModel":
         """Build the model architecture based on a saved checkpoint."""
         raise NotImplementedError()

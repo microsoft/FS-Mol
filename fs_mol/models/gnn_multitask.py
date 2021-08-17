@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
@@ -171,7 +169,7 @@ class GNNMultitaskModel(AbstractTorchModel[FSMolMultitaskBatch]):
         config_overrides: Dict[str, Any] = {},
         quiet: bool = False,
         device: Optional[torch.device] = None,
-    ) -> GNNMultitaskModel:
+    ) -> "GNNMultitaskModel":
         """Build the model architecture based on a saved checkpoint."""
         model, _ = load_model(
             model_file,

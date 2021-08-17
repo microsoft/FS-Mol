@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import logging
 import os
@@ -85,7 +83,7 @@ class MATModel(GraphTransformer, AbstractTorchModel[FSMolMATBatch]):
         config_overrides: Dict[str, Any] = {},
         quiet: bool = False,
         device: Optional[torch.device] = None,
-    ) -> MATModel:
+    ) -> "MATModel":
         # Parameters used for pretraining the original MAT model.
         model_params = {
             "d_atom": 28,
