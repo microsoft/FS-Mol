@@ -19,7 +19,9 @@ sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt
 
 from fs_mol.data import DataFold
 from fs_mol.maml_train import VALIDATION_MODEL_DEFAULT_HYPER_PARAMS
-from fs_mol.models.metalearning_graph_binary_classification import MetalearningGraphBinaryClassificationTask
+from fs_mol.models.metalearning_graph_binary_classification import (
+    MetalearningGraphBinaryClassificationTask,
+)
 from fs_mol.utils.logging import FileLikeLogger
 from fs_mol.utils.maml_data_utils import FSMolStubGraphDataset
 from fs_mol.utils.maml_train_utils import eval_model_by_finetuning_on_task

@@ -21,7 +21,9 @@ from fs_mol.data import (
     FoldTooSmallException,
     StratifiedTaskSampler,
 )
-from fs_mol.models.metalearning_graph_binary_classification import MetalearningGraphBinaryClassificationTask
+from fs_mol.models.metalearning_graph_binary_classification import (
+    MetalearningGraphBinaryClassificationTask,
+)
 from fs_mol.utils.logging import PROGRESS_LOG_LEVEL, prefix_log_msgs, restrict_console_log_level
 from fs_mol.utils.metrics import (
     BinaryEvalMetrics,
