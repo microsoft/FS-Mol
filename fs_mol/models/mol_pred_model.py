@@ -7,17 +7,17 @@ from typing import Any, Dict, Optional, Tuple
 import torch
 import torch.nn as nn
 
-from metamol.data.molfilm import MetamolMolFiLMBatch
-from metamol.models.interface import AbstractTorchModel
-from metamol.modules.thick_gnn import ThickGNN, ThickGNNConfig
-from metamol.modules.graph_readout import (
+from fs_mol.data.molfilm import FSMolMolFiLMBatch
+from fs_mol.models.interface import AbstractTorchModel
+from fs_mol.modules.thick_gnn import ThickGNN, ThickGNNConfig
+from fs_mol.modules.graph_readout import (
     GraphReadout,
     CombinedGraphReadout,
     MultiHeadWeightedGraphReadout,
     UnweightedGraphReadout,
 )
-from metamol.modules.mlp import MLP
-from metamol.modules.task_specific_models import (
+from fs_mol.modules.mlp import MLP
+from fs_mol.modules.task_specific_models import (
     ProjectedTaskEmbeddingLayerProvider,
     TaskEmbeddingFiLMLayer,
     LearnedTaskEmbeddingLayerProvider,
@@ -45,7 +45,7 @@ class MolPredConfig:
     task_embedding_dim: Optional[int] = None
 
 
-class MolPredModel(AbstractTorchModel[MetamolMolFiLMBatch]):
+class MolPredModel(AbstractTorchModel[FSMolMolFiLMBatch]):
     def __init__(self, config: MolPredConfig):
         super().__init__()
         self.config = config
@@ -147,7 +147,7 @@ class MolPredModel(AbstractTorchModel[MetamolMolFiLMBatch]):
         # TODO: Reinitialise the entire tail MLP - maybe we want to keep more bits here?
         self.tail_mlp = self.__create_tail_MLP()
 
-    def forward(self, batch: MetamolMolFiLMBatch):
+    def forward(self, batch: FSMolMolFiLMBatch):
         """Predicts a float (unbounded), representing binding affinity for each input molecule.
 
         Args:

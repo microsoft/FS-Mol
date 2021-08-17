@@ -17,13 +17,13 @@ from pyreporoot import project_root
 sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
 
 
-from metamol.data import DataFold
-from metamol.maml_train import VALIDATION_MODEL_DEFAULT_HYPER_PARAMS
-from metamol.models.split_lr_graph_binary_classification import SplitLRGraphBinaryClassificationTask
-from metamol.utils.logging import FileLikeLogger
-from metamol.utils.maml_data_utils import MetamolStubGraphDataset
-from metamol.utils.maml_train_utils import eval_model_by_finetuning_on_task
-from metamol.utils.test_utils import add_eval_cli_args, set_up_test_run, write_csv_summary
+from fs_mol.data import DataFold
+from fs_mol.maml_train import VALIDATION_MODEL_DEFAULT_HYPER_PARAMS
+from fs_mol.models.split_lr_graph_binary_classification import SplitLRGraphBinaryClassificationTask
+from fs_mol.utils.logging import FileLikeLogger
+from fs_mol.utils.maml_data_utils import FSMolStubGraphDataset
+from fs_mol.utils.maml_train_utils import eval_model_by_finetuning_on_task
+from fs_mol.utils.test_utils import add_eval_cli_args, set_up_test_run, write_csv_summary
 
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ def load_model_for_eval(args):
     model_params.update(args.model_params_override or {})
 
     # Create the model:
-    stub_graph_dataset = MetamolStubGraphDataset()
+    stub_graph_dataset = FSMolStubGraphDataset()
     model = model_cls(model_params, dataset=stub_graph_dataset)
     data_description = stub_graph_dataset.get_batch_tf_data_description()
     model.build(data_description.batch_features_shapes)

@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 from torch_scatter import scatter_softmax, scatter
 
-from metamol.modules.mlp import MLP
-from metamol.modules.task_specific_models import TaskEmbeddingLayerProvider
+from fs_mol.modules.mlp import MLP
+from fs_mol.modules.task_specific_models import TaskEmbeddingLayerProvider
 
 
 class GraphReadout(nn.Module, ABC):

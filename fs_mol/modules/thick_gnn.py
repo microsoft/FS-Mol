@@ -7,8 +7,8 @@ import torch.nn as nn
 from torch_scatter import scatter_sum, scatter_log_softmax, scatter_mean, scatter_max
 
 
-from metamol.modules.mlp import MLP
-from metamol.modules.task_specific_models import (
+from fs_mol.modules.mlp import MLP
+from fs_mol.modules.task_specific_models import (
     TaskEmbeddingLayerProvider,
     TaskEmbeddingFiLMLayer,
 )

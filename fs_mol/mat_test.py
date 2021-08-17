@@ -17,17 +17,17 @@ from pyprojroot import here as project_root
 sys.path.insert(0, "./MAT/src")
 sys.path.insert(0, str(project_root()))
 
-from metamol.data import (
+from fs_mol.data import (
     DataFold,
-    MetamolBatcher,
-    MetamolTask,
+    FSMolBatcher,
+    FSMolTask,
     MoleculeDatapoint,
     default_reader_fn,
 )
-from metamol.models.interface import AbstractTorchModel
-from metamol.molfilm_train import eval_model_by_finetuning_on_task
-from metamol.utils.molfilm_utils import resolve_starting_model_file
-from metamol.utils.test_utils import add_eval_cli_args, set_up_test_run, write_csv_summary
+from fs_mol.models.interface import AbstractTorchModel
+from fs_mol.molfilm_train import eval_model_by_finetuning_on_task
+from fs_mol.utils.molfilm_utils import resolve_starting_model_file
+from fs_mol.utils.test_utils import add_eval_cli_args, set_up_test_run, write_csv_summary
 
 from featurization.data_utils import construct_dataset, load_data_from_smiles, mol_collate_func
 from transformer import GraphTransformer, make_model
@@ -37,14 +37,14 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class MetamolMATBatch:
+class FSMolMATBatch:
     node_features: torch.Tensor
     adjacency_matrix: torch.Tensor
     distance_matrix: torch.Tensor
 
 
-class MATModel(GraphTransformer, AbstractTorchModel[MetamolMATBatch]):
-    def forward(self, batch: MetamolMATBatch) -> Any:
+class MATModel(GraphTransformer, AbstractTorchModel[FSMolMATBatch]):
+    def forward(self, batch: FSMolMATBatch) -> Any:
         mask = torch.sum(torch.abs(batch.node_features), dim=-1) != 0
 
         return super().forward(
@@ -147,14 +147,14 @@ def mat_batcher_add_sample_fn(
     batch_data["mat_features"].append(sample.mat_features)
 
 
-def mat_batcher_finalizer_fn(batch_data: Dict[str, Any]) -> Tuple[MetamolMATBatch, np.ndarray]:
+def mat_batcher_finalizer_fn(batch_data: Dict[str, Any]) -> Tuple[FSMolMATBatch, np.ndarray]:
     adjacency_matrix, node_features, distance_matrix, labels = mol_collate_func(
         construct_dataset(
             batch_data["mat_features"], [[label] for label in batch_data["bool_labels"]]
         )
     )
 
-    batch = MetamolMATBatch(
+    batch = FSMolMATBatch(
         node_features=node_features,
         adjacency_matrix=adjacency_matrix,
         distance_matrix=distance_matrix,
@@ -224,12 +224,12 @@ def main():
         device=device,
     )
 
-    def task_reader_fn(paths: List[RichPath], idx: int) -> List[MetamolTask]:
+    def task_reader_fn(paths: List[RichPath], idx: int) -> List[FSMolTask]:
         [task] = default_reader_fn(paths, idx)
-        return [MetamolTask(name=task.name, samples=mat_process_samples(task.samples))]
+        return [FSMolTask(name=task.name, samples=mat_process_samples(task.samples))]
 
     for task in dataset.get_task_reading_iterable(DataFold.TEST, task_reader_fn=task_reader_fn):
-        batcher = MetamolBatcher(
+        batcher = FSMolBatcher(
             max_num_graphs=args.batch_size,
             init_callback=mat_batcher_init_fn,
             per_datapoint_callback=mat_batcher_add_sample_fn,

@@ -15,12 +15,12 @@ from typing import (
 
 import numpy as np
 
-from metamol.data.metamol_dataset import NUM_EDGE_TYPES
-from metamol.data.metamol_task import MoleculeDatapoint
+from fs_mol.data.fsmol_dataset import NUM_EDGE_TYPES
+from fs_mol.data.fsmol_task import MoleculeDatapoint
 
 
 @dataclass(frozen=True)
-class MetamolBatch:
+class FSMolBatch:
     num_graphs: int
     num_nodes: int
     num_edges: int
@@ -38,7 +38,7 @@ BatchFeatureType = TypeVar("BatchFeatureType")
 BatchLabelType = TypeVar("BatchLabelType")
 
 
-def metamol_batch_finalizer(batch_data: Dict[str, Any]) -> MetamolBatch:
+def fsmol_batch_finalizer(batch_data: Dict[str, Any]) -> FSMolBatch:
     adjacency_lists = []
     for adj_lists in batch_data["adjacency_lists"]:
         if len(adj_lists) > 0:
@@ -55,7 +55,7 @@ def metamol_batch_finalizer(batch_data: Dict[str, Any]) -> MetamolBatch:
                 np.zeros(shape=(adjacency_lists[edge_type_idx].shape[0], 0), dtype=np.float32)
             )
 
-    return MetamolBatch(
+    return FSMolBatch(
         num_graphs=batch_data["num_graphs"],
         num_nodes=batch_data["num_nodes"],
         num_edges=batch_data["num_edges"],
@@ -66,7 +66,7 @@ def metamol_batch_finalizer(batch_data: Dict[str, Any]) -> MetamolBatch:
     )
 
 
-class MetamolBatcher(Generic[BatchFeatureType, BatchLabelType]):
+class FSMolBatcher(Generic[BatchFeatureType, BatchLabelType]):
     def __init__(
         self,
         max_num_graphs: Optional[int] = None,
@@ -120,7 +120,7 @@ class MetamolBatcher(Generic[BatchFeatureType, BatchLabelType]):
         if self._finalizer_callback is not None:
             return self._finalizer_callback(batch_data)
 
-        batch_features = metamol_batch_finalizer(batch_data)
+        batch_features = fsmol_batch_finalizer(batch_data)
         return batch_features, np.stack(batch_data["bool_labels"], axis=0)
 
     def batch(
@@ -170,13 +170,13 @@ class MetamolBatcher(Generic[BatchFeatureType, BatchLabelType]):
             yield self.__finalize_batch(batch_data)
 
 
-class MetamolBatchIterable(
+class FSMolBatchIterable(
     Iterable[Tuple[BatchFeatureType, BatchLabelType]], Generic[BatchFeatureType, BatchLabelType]
 ):
     def __init__(
         self,
         samples: List[MoleculeDatapoint],
-        batcher: MetamolBatcher[BatchFeatureType, BatchLabelType],
+        batcher: FSMolBatcher[BatchFeatureType, BatchLabelType],
         shuffle: bool = False,
         seed: int = 0,
     ):

@@ -8,8 +8,8 @@ from typing import Any, Optional, Tuple, Union
 import numpy as np
 from dpu_utils.utils import RichPath
 
-from metamol.data.metamol_dataset import MetamolDataset
-from metamol.utils.logging import set_up_logging
+from fs_mol.data.fsmol_dataset import FSMolDataset
+from fs_mol.utils.logging import set_up_logging
 
 
 logger = logging.getLogger(__name__)
@@ -45,11 +45,11 @@ def add_train_cli_args(parser: argparse.ArgumentParser) -> None:
 
 def set_up_train_run(
     model_name: str, args: argparse.Namespace, torch: bool = False, tf: bool = False
-) -> Tuple[str, MetamolDataset, Optional[Any]]:
+) -> Tuple[str, FSMolDataset, Optional[Any]]:
     logger.info(f"Setting random seed {args.seed}.")
     set_seed(args.seed, torch=torch, tf=tf)
 
-    run_name = f"Metamol_{model_name}_{time.strftime('%Y-%m-%d_%H-%M-%S')}"
+    run_name = f"FSMol_{model_name}_{time.strftime('%Y-%m-%d_%H-%M-%S')}"
     out_dir = os.path.join(args.save_dir, run_name)
     os.makedirs(out_dir, exist_ok=True)
     set_up_logging(os.path.join(out_dir, f"train.log"))
@@ -60,7 +60,7 @@ def set_up_train_run(
     logger.info(f"\tData path: {args.DATA_PATH}")
     logger.info(f"\tTask split: {args.TASK_FILE_LIST}")
 
-    metamol_dataset = MetamolDataset.from_task_split_file(
+    fsmol_dataset = FSMolDataset.from_task_split_file(
         data_path=RichPath.create(args.DATA_PATH),
         task_split_path=RichPath.create(args.TASK_FILE_LIST),
     )
@@ -72,7 +72,7 @@ def set_up_train_run(
     else:
         aml_run = None
 
-    return out_dir, metamol_dataset, aml_run
+    return out_dir, fsmol_dataset, aml_run
 
 
 def str2bool(v: Union[str, bool]) -> bool:

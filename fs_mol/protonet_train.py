@@ -7,8 +7,8 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
-from metamol.utils.cli_utils import add_train_cli_args, set_up_train_run
-from metamol.utils.protonet_utils import (
+from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run
+from fs_mol.utils.protonet_utils import (
     PrototypicalNetworkTrainerConfig,
     PrototypicalNetworkTrainer,
 )

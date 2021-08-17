@@ -25,18 +25,18 @@ from pyreporoot import project_root
 
 sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
 
-from metamol.data import (
-    MetamolDataset,
+from fs_mol.data import (
+    FSMolDataset,
     DataFold,
-    MetamolTask,
-    MetamolTaskSample,
+    FSMolTask,
+    FSMolTaskSample,
     StratifiedTaskSampler,
 )
-from metamol.models.split_lr_graph_binary_classification import SplitLRGraphBinaryClassificationTask
-from metamol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
-from metamol.utils.logging import FileLikeLogger, PROGRESS_LOG_LEVEL
-from metamol.utils.maml_data_utils import MetamolStubGraphDataset, TFGraphBatchIterable
-from metamol.utils.maml_train_utils import save_model, eval_model_by_finetuning_on_tasks
+from fs_mol.models.split_lr_graph_binary_classification import SplitLRGraphBinaryClassificationTask
+from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
+from fs_mol.utils.logging import FileLikeLogger, PROGRESS_LOG_LEVEL
+from fs_mol.utils.maml_data_utils import FSMolStubGraphDataset, TFGraphBatchIterable
+from fs_mol.utils.maml_train_utils import save_model, eval_model_by_finetuning_on_tasks
 
 
 logger = logging.getLogger(__name__)
@@ -80,7 +80,7 @@ class MetatrainValidationCallback(Protocol):
 
 def metatrain_on_task_samples(
     model: SplitLRGraphBinaryClassificationTask,
-    task_samples: List[MetamolTaskSample],
+    task_samples: List[FSMolTaskSample],
     max_num_nodes_in_batch: int,
     max_num_inner_train_steps: int = 1,
     metatrain_task_specific_parameters: bool = True,
@@ -188,7 +188,7 @@ def metatrain_on_task_samples(
 def metatrain_loop(
     model: SplitLRGraphBinaryClassificationTask,
     metatrain_valid_fn: MetatrainValidationCallback,
-    dataset: MetamolDataset,
+    dataset: FSMolDataset,
     max_num_nodes_in_batch: int,
     max_epochs: int,
     patience: int,
@@ -212,7 +212,7 @@ def metatrain_loop(
 
     def read_and_sample_from_task(paths: List[RichPath], id: int) -> Iterable[GraphSample]:
         for i, path in enumerate(paths):
-            task = MetamolTask.load_from_file(path)
+            task = FSMolTask.load_from_file(path)
             yield task_sampler.sample(task, seed=id + i)
 
     # A metatesting epoch is when given a pre-trained model, we iterate over all validation tasks,
@@ -302,9 +302,9 @@ def metatrain_loop(
 
 def run_metatraining_from_args(args):
     # Get the housekeeping going and start logging:
-    out_dir, metamol_dataset, aml_run = set_up_train_run("MAML", args, tf=True)
+    out_dir, fsmol_dataset, aml_run = set_up_train_run("MAML", args, tf=True)
 
-    stub_graph_dataset = MetamolStubGraphDataset()
+    stub_graph_dataset = FSMolStubGraphDataset()
 
     # Create the MAML model:
     model_cls = SplitLRGraphBinaryClassificationTask
@@ -341,7 +341,7 @@ def run_metatraining_from_args(args):
         metatrain_valid_fn=partial(
             eval_model_by_finetuning_on_tasks,
             model=valid_model,
-            tasks=metamol_dataset.get_task_reading_iterable(DataFold.VALIDATION),
+            tasks=fsmol_dataset.get_task_reading_iterable(DataFold.VALIDATION),
             max_num_nodes_in_batch=10000,
             metric_to_use=args.test_metric,
             train_set_sample_sizes=args.validation_train_set_sizes,
@@ -349,7 +349,7 @@ def run_metatraining_from_args(args):
             num_samples=args.validation_num_samples,
             aml_run=aml_run,
         ),
-        dataset=metamol_dataset,
+        dataset=fsmol_dataset,
         max_num_nodes_in_batch=10000,
         max_epochs=args.max_epochs,
         patience=args.patience,

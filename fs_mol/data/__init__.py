@@ -1,18 +1,18 @@
-from metamol.data.metamol_batcher import (
-    MetamolBatch,
-    MetamolBatcher,
-    metamol_batch_finalizer,
-    MetamolBatchIterable,
+from fs_mol.data.fsmol_batcher import (
+    FSMolBatch,
+    FSMolBatcher,
+    fsmol_batch_finalizer,
+    FSMolBatchIterable,
 )
-from metamol.data.metamol_dataset import (
+from fs_mol.data.fsmol_dataset import (
     NUM_EDGE_TYPES,
     NUM_NODE_FEATURES,
     DataFold,
-    MetamolDataset,
+    FSMolDataset,
     default_reader_fn,
 )
-from metamol.data.metamol_task import MoleculeDatapoint, MetamolTask, MetamolTaskSample
-from metamol.data.metamol_task_sampler import (
+from fs_mol.data.fsmol_task import MoleculeDatapoint, FSMolTask, FSMolTaskSample
+from fs_mol.data.fsmol_task_sampler import (
     DatasetTooSmallException,
     DatasetClassTooSmallException,
     FoldTooSmallException,
@@ -25,16 +25,16 @@ from metamol.data.metamol_task_sampler import (
 __all__ = [
     NUM_EDGE_TYPES,
     NUM_NODE_FEATURES,
-    MetamolBatch,
-    MetamolBatcher,
-    MetamolBatchIterable,
-    metamol_batch_finalizer,
+    FSMolBatch,
+    FSMolBatcher,
+    FSMolBatchIterable,
+    fsmol_batch_finalizer,
     DataFold,
-    MetamolDataset,
+    FSMolDataset,
     default_reader_fn,
     MoleculeDatapoint,
-    MetamolTask,
-    MetamolTaskSample,
+    FSMolTask,
+    FSMolTaskSample,
     DatasetTooSmallException,
     DatasetClassTooSmallException,
     FoldTooSmallException,

@@ -15,19 +15,19 @@ from sklearn.model_selection import GridSearchCV
 
 sys.path.insert(0, str(project_root()))
 
-from metamol.data import (
+from fs_mol.data import (
     DataFold,
-    MetamolTask,
+    FSMolTask,
     DatasetClassTooSmallException,
     DatasetTooSmallException,
     FoldTooSmallException,
     StratifiedTaskSampler,
 )
-from metamol.utils.cli_utils import str2bool
-from metamol.utils.logging import prefix_log_msgs
-from metamol.utils.metrics import compute_binary_task_metrics
-from metamol.utils.test_utils import (
-    MetamolTaskSampleEvalResults,
+from fs_mol.utils.cli_utils import str2bool
+from fs_mol.utils.logging import prefix_log_msgs
+from fs_mol.utils.metrics import compute_binary_task_metrics
+from fs_mol.utils.test_utils import (
+    FSMolTaskSampleEvalResults,
     write_csv_summary,
     add_eval_cli_args,
     set_up_test_run,
@@ -61,7 +61,7 @@ NAME_TO_MODEL_CLS: Dict[str, Any] = {
 
 def test(
     model_name: str,
-    task: MetamolTask,
+    task: FSMolTask,
     train_set_sample_sizes: List[int],
     num_samples: int,
     test_set_size: Optional[int] = None,
@@ -69,7 +69,7 @@ def test(
     grid_search_parameters: Optional[Dict[str, Any]] = None,
     model_params: Dict[str, Any] = {},
     seed: int = 0,
-) -> List[MetamolTaskSampleEvalResults]:
+) -> List[FSMolTaskSampleEvalResults]:
     test_results = []
     for train_size in train_set_sample_sizes:
         task_sampler = StratifiedTaskSampler(
@@ -133,7 +133,7 @@ def test(
                 )
 
                 test_results.append(
-                    MetamolTaskSampleEvalResults(
+                    FSMolTaskSampleEvalResults(
                         task_name=task.name,
                         seed=seed + run_idx,
                         num_train=train_size,

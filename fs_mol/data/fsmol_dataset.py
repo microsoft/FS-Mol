@@ -5,11 +5,11 @@ from typing import List, Dict, Iterable, Optional, Union, Callable, TypeVar
 
 from dpu_utils.utils import RichPath
 
-from metamol.data.file_reader_iterable import (
+from fs_mol.data.file_reader_iterable import (
     BufferedFileReaderIterable,
     SequentialFileReaderIterable,
 )
-from metamol.data.metamol_task import MetamolTask, get_task_name_from_path
+from fs_mol.data.fsmol_task import FSMolTask, get_task_name_from_path
 
 
 logger = logging.getLogger(__name__)
@@ -28,14 +28,14 @@ class DataFold(Enum):
     TEST = 2
 
 
-def default_reader_fn(paths: List[RichPath], idx: int) -> List[MetamolTask]:
+def default_reader_fn(paths: List[RichPath], idx: int) -> List[FSMolTask]:
     if len(paths) > 1:
         raise ValueError()
 
-    return [MetamolTask.load_from_file(paths[0])]
+    return [FSMolTask.load_from_file(paths[0])]
 
 
-class MetamolDataset:
+class FSMolDataset:
     """Dataset of related tasks, provided as individual files split into meta-train, meta-valid and
     meta-test sets."""
 
@@ -64,15 +64,15 @@ class MetamolDataset:
     @staticmethod
     def from_task_split_file(
         data_path: Union[str, RichPath], task_split_path: Union[str, RichPath], **kwargs
-    ) -> "MetamolDataset":
-        """Create a new MetamolDataset object from a data path (containing the pre-processed tasks)
+    ) -> "FSMolDataset":
+        """Create a new FSMolDataset object from a data path (containing the pre-processed tasks)
         and a JSON file describing how the tasks are split across train/valid/test.
 
         Args:
             data_path: Path containing .jsonl.gz files representing the pre-processed tasks.
             task_split_path: Path to a JSON file containing a dictionary listing the names of the
                 train, validation, and test tasks.
-            **kwargs: remaining arguments are forwarded to the MetamolDataset constructor.
+            **kwargs: remaining arguments are forwarded to the FSMolDataset constructor.
         """
         if isinstance(data_path, str):
             data_rp = RichPath.create(data_path)
@@ -97,7 +97,7 @@ class MetamolDataset:
                 )
             ]
 
-        return MetamolDataset(
+        return FSMolDataset(
             train_data_paths=get_fold_file_names("train"),
             valid_data_paths=sorted(get_fold_file_names("valid")),
             test_data_paths=sorted(get_fold_file_names("test")),
