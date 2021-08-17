@@ -42,6 +42,7 @@ from preprocessing.utils.cleaning_utils import (
 
 logger = logging.getLogger(__name__)
 
+
 class CleaningFailedException(Exception):
     def __init__(
         self,
@@ -51,9 +52,7 @@ class CleaningFailedException(Exception):
         self.assay = assay
 
     def __str__(self):
-        return (
-            f"Full cleaning of assay {self.assay} failed. \n"
-        )
+        return f"Full cleaning of assay {self.assay} failed. \n"
 
 
 def select_assays(x: pd.DataFrame, **kwargs) -> pd.DataFrame:
@@ -261,7 +260,10 @@ def get_argparser():
 
     return parser
 
-def clean_assay(df: pd.DataFrame, basepath: str, assay: str, assay_file: str) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+
+def clean_assay(
+    df: pd.DataFrame, basepath: str, assay: str, assay_file: str
+) -> Tuple[pd.DataFrame, Dict[str, Any]]:
 
     # remove index if it was saved with this file (back compatible)
     if "Unnamed: 0" in df.columns:
@@ -298,13 +300,9 @@ def clean_assay(df: pd.DataFrame, basepath: str, assay: str, assay_file: str) ->
                 df = None
                 logger.warning(f"Failed cleaning step {step} on {assay} : {e}")
                 failed = True
-                        
-    try: 
-        target_id = (
-                        df.iloc[0]["target_id"]
-                        if "target_id" in df.columns
-                        else None
-                    )
+
+    try:
+        target_id = df.iloc[0]["target_id"] if "target_id" in df.columns else None
 
         organism = (
             None
@@ -312,31 +310,26 @@ def clean_assay(df: pd.DataFrame, basepath: str, assay: str, assay_file: str) ->
             else df.iloc[0]["assay_organism"]
         )
         assay_dict = {
-                        "chembl_id": assay,
-                        "target_id": target_id,
-                        "assay_type": df.iloc[0]["assay_type"],
-                        "assay_organism": organism,
-                        "raw_size": original_size,
-                        "cleaned_size": len(df),
-                        "cleaning_failed": str(failed),
-                        "cleaning_size_delta": original_size - len(df),
-                        "num_pos": df["activity"].sum(),
-                        "percentage_pos": "percentage_pos": df["activity"].sum()
-                                * 100
-                                / len(df),
-                        "max_mol_weight": "max_mol_weight": df.iloc[0][
-                                    "max_molecular_weight"
-                                ],
-                        "threshold": df.iloc[0]["threshold"],
-                        "max_num_atoms": df.iloc[0]["max_num_atoms"],
-                        "confidence_score": df.iloc[0]["confidence_score"],
-                        "standard_units": df.iloc[0]["standard_units"],
-                    }
+            "chembl_id": assay,
+            "target_id": target_id,
+            "assay_type": df.iloc[0]["assay_type"],
+            "assay_organism": organism,
+            "raw_size": original_size,
+            "cleaned_size": len(df),
+            "cleaning_failed": str(failed),
+            "cleaning_size_delta": original_size - len(df),
+            "num_pos": df["activity"].sum(),
+            "percentage_pos": df["activity"].sum() * 100 / len(df),
+            "max_mol_weight": df.iloc[0]["max_molecular_weight"],
+            "threshold": df.iloc[0]["threshold"],
+            "max_num_atoms": df.iloc[0]["max_num_atoms"],
+            "confidence_score": df.iloc[0]["confidence_score"],
+            "standard_units": df.iloc[0]["standard_units"],
+        }
     except Exception as e:
         raise CleaningFailedException(assay)
 
     return df, assay_dict
-
 
 
 def process_all_assays(
@@ -379,7 +372,7 @@ def process_all_assays(
                 logger.warning(f"failed to load assay: {e}")
                 continue
 
-            try: 
+            try:
                 cleaned_df, summary_dict = clean_assay(df)
                 logger.info(f"Assay {assay} saving to output directory.")
                 cleaned_df.to_csv(
@@ -389,8 +382,6 @@ def process_all_assays(
                 csv_writer.writerow(summary_dict)
             except CleaningFailedException as e:
                 continue
-
-        
 
 
 def get_files_to_process(input_dir: str, output_dir: str) -> List[str]:
@@ -430,9 +421,7 @@ def clean_directory(args):
 
     files_to_process = get_files_to_process(input_dir, output_dir)
 
-    process_all_assays(
-        files_to_process, output_dir, basepath, args.stop_step
-    )
+    process_all_assays(files_to_process, output_dir, basepath, args.stop_step)
 
 
 def run():
