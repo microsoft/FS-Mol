@@ -32,7 +32,9 @@ from fs_mol.data import (
     FSMolTaskSample,
     StratifiedTaskSampler,
 )
-from fs_mol.models.metalearning_graph_binary_classification import MetalearningGraphBinaryClassificationTask
+from fs_mol.models.metalearning_graph_binary_classification import (
+    MetalearningGraphBinaryClassificationTask,
+)
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
 from fs_mol.utils.logging import FileLikeLogger, PROGRESS_LOG_LEVEL
 from fs_mol.utils.maml_data_utils import FSMolStubGraphDataset, TFGraphBatchIterable
