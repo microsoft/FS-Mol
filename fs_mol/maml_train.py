@@ -32,7 +32,7 @@ from fs_mol.data import (
     FSMolTaskSample,
     StratifiedTaskSampler,
 )
-from fs_mol.models.split_lr_graph_binary_classification import SplitLRGraphBinaryClassificationTask
+from fs_mol.models.metalearning_graph_binary_classification import MetalearningGraphBinaryClassificationTask
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
 from fs_mol.utils.logging import FileLikeLogger, PROGRESS_LOG_LEVEL
 from fs_mol.utils.maml_data_utils import FSMolStubGraphDataset, TFGraphBatchIterable
@@ -79,7 +79,7 @@ class MetatrainValidationCallback(Protocol):
 
 
 def metatrain_on_task_samples(
-    model: SplitLRGraphBinaryClassificationTask,
+    model: MetalearningGraphBinaryClassificationTask,
     task_samples: List[FSMolTaskSample],
     max_num_nodes_in_batch: int,
     max_num_inner_train_steps: int = 1,
@@ -186,7 +186,7 @@ def metatrain_on_task_samples(
 
 
 def metatrain_loop(
-    model: SplitLRGraphBinaryClassificationTask,
+    model: MetalearningGraphBinaryClassificationTask,
     metatrain_valid_fn: MetatrainValidationCallback,
     dataset: FSMolDataset,
     max_num_nodes_in_batch: int,
@@ -307,7 +307,7 @@ def run_metatraining_from_args(args):
     stub_graph_dataset = FSMolStubGraphDataset()
 
     # Create the MAML model:
-    model_cls = SplitLRGraphBinaryClassificationTask
+    model_cls = MetalearningGraphBinaryClassificationTask
     model_params = model_cls.get_default_hyperparameters(args.gnn_type)
     model_params.update(MAML_MODEL_DEFAULT_HYPER_PARAMS)
     model_params.update(args.model_params_override or {})

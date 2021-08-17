@@ -19,7 +19,7 @@ sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt
 
 from fs_mol.data import DataFold
 from fs_mol.maml_train import VALIDATION_MODEL_DEFAULT_HYPER_PARAMS
-from fs_mol.models.split_lr_graph_binary_classification import SplitLRGraphBinaryClassificationTask
+from fs_mol.models.metalearning_graph_binary_classification import MetalearningGraphBinaryClassificationTask
 from fs_mol.utils.logging import FileLikeLogger
 from fs_mol.utils.maml_data_utils import FSMolStubGraphDataset
 from fs_mol.utils.maml_train_utils import eval_model_by_finetuning_on_task
@@ -35,17 +35,17 @@ def load_model_for_eval(args):
         with open(args.trained_model, "rb") as in_file:
             data_to_load = pickle.load(in_file)
             # Check whether model to load matches the type we are training
-            if data_to_load["model_class"] is SplitLRGraphBinaryClassificationTask:
+            if data_to_load["model_class"] is MetalearningGraphBinaryClassificationTask:
                 model_cls = data_to_load["model_class"]
                 model_params = data_to_load["model_params"]
             else:
                 # initialise a new one
-                model_cls = SplitLRGraphBinaryClassificationTask
+                model_cls = MetalearningGraphBinaryClassificationTask
                 model_params = model_cls.get_default_hyperparameters("GNN_Edge_MLP")
                 model_params.update(data_to_load["model_params"])
                 model_params.update(VALIDATION_MODEL_DEFAULT_HYPER_PARAMS)
     else:
-        model_cls = SplitLRGraphBinaryClassificationTask
+        model_cls = MetalearningGraphBinaryClassificationTask
         model_params = model_cls.get_default_hyperparameters("GNN_Edge_MLP")
         model_params.update(VALIDATION_MODEL_DEFAULT_HYPER_PARAMS)
     model_params.update(args.model_params_override or {})
@@ -106,7 +106,7 @@ def run():
         help=(
             "File to load model from (determines model architecture & task). If this is None,"
             " a fresh model will be initialised and trained from scratch."
-            " If the model type does not match SplitLRGraphBinaryClassificationTask,"
+            " If the model type does not match MetalearningGraphBinaryClassificationTask,"
             " will load as many parameters as possible."
         ),
     )

@@ -21,7 +21,7 @@ class NoCachedStateError(Exception):
         return f"No cached state exists, model has not yet been built."
 
 
-class SplitLRGraphBinaryClassificationTask(GraphBinaryClassificationTask):
+class MetalearningGraphBinaryClassificationTask(GraphBinaryClassificationTask):
     @classmethod
     def get_default_hyperparameters(cls, mp_style: Optional[str] = None) -> Dict[str, Any]:
         super_params = super().get_default_hyperparameters(mp_style)
