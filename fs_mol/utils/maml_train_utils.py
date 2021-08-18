@@ -154,7 +154,7 @@ def finetune_and_eval_on_task(
     max_num_epochs: int = 50,
     patience: int = 10,
     quiet: bool = False,
-) -> Tuple[float, BinaryEvalMetrics]:
+) -> BinaryEvalMetrics:
     model_save_file = os.path.join(out_folder, f"best_model.pkl")
     # We now need to set the parameters to their current values in the training model:
     for var in model.trainable_variables:
@@ -204,7 +204,7 @@ def finetune_and_eval_on_task(
     logger.log(PROGRESS_LOG_LEVEL, f" Test loss:                   {float(test_loss):.5f}")
     logger.log(PROGRESS_LOG_LEVEL, f" Test metrics: {test_metrics}")
 
-    return test_loss, test_metrics
+    return test_metrics
 
 
 def eval_model_by_finetuning_on_task(
@@ -220,8 +220,7 @@ def eval_model_by_finetuning_on_task(
     patience: int = 10,
     seed: int = 0,
     quiet: bool = False,
-) -> Tuple[List[float], List[FSMolTaskSampleEvalResults]]:
-    test_losses: List[float] = []
+) -> List[FSMolTaskSampleEvalResults]:
     test_results: List[FSMolTaskSampleEvalResults] = []
     for train_size in train_set_sample_sizes:
         task_sampler = StratifiedTaskSampler(
@@ -249,7 +248,7 @@ def eval_model_by_finetuning_on_task(
                     logger.debug(" Sampling error: " + str(e))
                     continue
 
-                test_loss, test_metrics = finetune_and_eval_on_task(
+                test_metrics = finetune_and_eval_on_task(
                     model,
                     model_weights,
                     train_samples=task_sample.train_samples,
@@ -269,7 +268,7 @@ def eval_model_by_finetuning_on_task(
                 logger.info(
                     f" Dataset sample test {metric_to_use}: {getattr(test_metrics, metric_to_use):.4f}"
                 )
-                test_losses.append(test_loss)
+
                 test_results.append(
                     FSMolTaskSampleEvalResults(
                         task_name=task.name,
@@ -282,7 +281,7 @@ def eval_model_by_finetuning_on_task(
                     )
                 )
 
-    return test_losses, test_results
+    return test_results
 
 
 def eval_model_by_finetuning_on_tasks(
@@ -297,10 +296,9 @@ def eval_model_by_finetuning_on_tasks(
     num_samples: int = 5,
     aml_run=None,
 ) -> float:
-    task_to_losses: Dict[str, List[float]] = {}
     task_to_results: Dict[str, List[BinaryEvalMetrics]] = {}
     for task in tasks:
-        task_losses, task_metrics = eval_model_by_finetuning_on_task(
+        task_metrics = eval_model_by_finetuning_on_task(
             model=model,
             model_weights=model_weights,
             task=task,
@@ -313,7 +311,6 @@ def eval_model_by_finetuning_on_tasks(
             quiet=True,
         )
         task_to_results[task.name] = task_metrics
-        task_to_losses[task.name] = task_losses
 
     mean_metrics = avg_metrics_list(list(itertools.chain(*task_to_results.values())))
     if aml_run is not None:

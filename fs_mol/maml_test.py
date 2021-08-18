@@ -76,7 +76,7 @@ def run_from_args(args) -> None:
     base_model_weights = {var.name: var.value() for var in model.trainable_variables}
 
     for task in dataset.get_task_reading_iterable(DataFold.TEST):
-        _, test_results = eval_model_by_finetuning_on_task(
+        test_results = eval_model_by_finetuning_on_task(
             model,
             base_model_weights,
             task,
