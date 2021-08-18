@@ -4,7 +4,7 @@ import time
 from multiprocessing import Queue, Process, Event
 from multiprocessing.synchronize import Event as EventType
 from queue import Empty
-from typing import List, Iterator, TypeVar, Callable, Iterable
+from typing import List, Iterator, TypeVar, Callable, Iterable, Union, Type
 
 import numpy as np
 from dpu_utils.utils import RichPath
