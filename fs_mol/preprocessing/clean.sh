@@ -4,7 +4,7 @@
 mntPath="/mnt/genchemdata/preprocessed-data/metamol/metamol/"
 
 # then do one pass with automated thresholds
-python chembl_cleaning.py $mntPath --input-dir "raw/" --output-name "_autothreshold_new"
+python clean.py $mntPath --input-dir "raw/" --output-name "_autothreshold_new"
 
 # DO THE ASSAY-TO-GRAPH PROCESSING
 metadata="/home/megstanley/FS-Mol/fs_mol/preprocessing/"

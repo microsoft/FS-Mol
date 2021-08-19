@@ -171,29 +171,29 @@ def autothreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:
         buffer = df["log_standard_value"].std() / 10
 
         # NEW VERSION
-        # if df["log_standard_value"].value_counts().idxmax() == median:
-        #     threshold = median + 0.001
-        # else:
-        #     if median < threshold_limits[0]: 
-        #         threshold = threshold_limits[0]
-        #     elif median > threshold_limits[1]:
-        #         threshold = threshold_limits[1]
+        if df["log_standard_value"].value_counts().idxmax() == median:
+            threshold = median + 0.001
+        else:
+            if median < threshold_limits[0]:
+                threshold = threshold_limits[0]
+            elif median > threshold_limits[1]:
+                threshold = threshold_limits[1]
 
         # OLD VERSION
         # use as a threshold provided it is in a sensible
         # range. This was chosen as pKI 4-6 in general, 5-7 for enzymes
-        if "protein_class_desc" in df.columns:
-            if any(("enzyme" in x) or ("ase" in x) for x in df.protein_class_desc.values):
-                threshold_limits = (5, 7)
-            else:
-                threshold_limits = (4, 6)
-        else:
-            threshold_limits = (4, 6)
+        # if "protein_class_desc" in df.columns:
+        #     if any(("enzyme" in x) or ("ase" in x) for x in df.protein_class_desc.values):
+        #         threshold_limits = (5, 7)
+        #     else:
+        #         threshold_limits = (4, 6)
+        # else:
+        #     threshold_limits = (4, 6)
 
-        if median < threshold_limits[0] or median > threshold_limits[1]:
-            threshold = 5.0
-        else:
-            threshold = median
+        # if median < threshold_limits[0] or median > threshold_limits[1]:
+        #     threshold = 5.0
+        # else:
+        #     threshold = median
 
         df["activity_string"] = df.apply(activity_threshold, args=(threshold,), buffer=buffer, axis=1)
 
