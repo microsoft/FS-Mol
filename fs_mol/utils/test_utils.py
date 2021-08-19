@@ -35,16 +35,9 @@ def add_data_cli_args(parser: argparse.ArgumentParser) -> None:
         nargs="+",
         help=(
             "File(s) containing the test data."
-            " If this is a directory, --task-file-list is required to define the test tasks."
+            " If this is a directory, all files in dir/test will be evaluated."
             " Otherwise, it is the data file(s) on which testing is done."
         ),
-    )
-
-    parser.add_argument(
-        "--task-file-list",
-        type=str,
-        default=None,
-        help="JSON dictionary file with lists of train/test/valid tasks.",
     )
 
 
@@ -89,11 +82,12 @@ def add_eval_cli_args(parser: argparse.ArgumentParser) -> None:
 
 def set_up_dataset(args: argparse.Namespace, **kwargs):
     # Handle the different task entry methods.
-    if args.task_file_list is not None:
+    # Permit a directory or a list of files
+    if len(args.DATA_PATH) == 1 and RichPath.create(args.DATA_PATH[0]).is_dir():
         assert (
-            len(args.DATA_PATH) == 1
-        ), "DATA_PATH argument should be directory only if task_file_list arg is passed."
-        return FSMolDataset.from_task_split_file(args.DATA_PATH[0], args.task_file_list, **kwargs)
+            RichPath.create(args.DATA_PATH[0]).join("test").exists()
+        ), "If DATA_PATH is a directory it must contain test/ sub-directory for evaluation."
+        return FSMolDataset.from_directory(args.DATA_PATH[0], **kwargs)
     else:
         return FSMolDataset(test_data_paths=[RichPath.create(p) for p in args.DATA_PATH], **kwargs)
 
