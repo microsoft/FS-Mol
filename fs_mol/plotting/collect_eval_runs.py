@@ -1,10 +1,8 @@
 """Collecting MAML test results"""
 import os
 import sys
-from typing import Optional, Callable, List
-
 import pandas as pd
-from inspect import getsourcefile
+from typing import Optional, Callable, List
 
 from pyprojroot import here as project_root
 
