@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
 import warnings
 from dataclasses import dataclass
@@ -18,16 +17,17 @@ sys.path.insert(0, "./MAT/src")
 sys.path.insert(0, str(project_root()))
 
 from fs_mol.data import (
-    DataFold,
     FSMolBatcher,
     FSMolTask,
+    FSMolTaskSample,
     MoleculeDatapoint,
     default_reader_fn,
 )
 from fs_mol.models.interface import AbstractTorchModel
 from fs_mol.multitask_train import eval_model_by_finetuning_on_task
+from fs_mol.utils.metrics import BinaryEvalMetrics
 from fs_mol.utils.multitask_utils import resolve_starting_model_file
-from fs_mol.utils.test_utils import add_eval_cli_args, set_up_test_run, write_csv_summary
+from fs_mol.utils.test_utils import add_eval_cli_args, eval_model, set_up_test_run
 
 from featurization.data_utils import construct_dataset, load_data_from_smiles, mol_collate_func
 from transformer import GraphTransformer, make_model
@@ -228,7 +228,9 @@ def main():
         [task] = default_reader_fn(paths, idx)
         return [FSMolTask(name=task.name, samples=mat_process_samples(task.samples))]
 
-    for task in dataset.get_task_reading_iterable(DataFold.TEST, task_reader_fn=task_reader_fn):
+    def test_model_fn(
+        task_sample: FSMolTaskSample, temp_out_folder: str, seed: int
+    ) -> BinaryEvalMetrics:
         batcher = FSMolBatcher(
             max_num_graphs=args.batch_size,
             init_callback=mat_batcher_init_fn,
@@ -236,25 +238,30 @@ def main():
             finalizer_callback=mat_batcher_finalizer_fn,
         )
 
-        test_results = eval_model_by_finetuning_on_task(
+        return eval_model_by_finetuning_on_task(
             model_weights_file,
             model_cls=MATModel,
-            task=task,
+            task_sample=task_sample,
+            temp_out_folder=temp_out_folder,
             batcher=batcher,
-            train_set_sample_sizes=args.train_sizes,
-            test_set_size=args.test_size,
-            num_samples=args.num_runs,
             learning_rate=args.learning_rate,
             task_specific_learning_rate=args.task_specific_lr,
             metric_to_use="avg_precision",
-            seed=args.seed,
+            seed=seed,
             quiet=True,
             device=device,
         )
 
-        write_csv_summary(
-            os.path.join(args.save_dir, f"{task.name}_eval_results.csv"), test_results
-        )
+    eval_model(
+        test_model_fn=test_model_fn,
+        dataset=dataset,
+        train_set_sample_sizes=args.train_sizes,
+        out_dir=args.save_dir,
+        num_samples=args.num_runs,
+        valid_size_or_ratio=0.2,
+        task_reader_fn=task_reader_fn,
+        seed=args.seed,
+    )
 
 
 if __name__ == "__main__":
