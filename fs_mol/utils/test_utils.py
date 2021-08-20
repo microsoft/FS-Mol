@@ -61,18 +61,10 @@ def add_eval_cli_args(parser: argparse.ArgumentParser) -> None:
     )
 
     parser.add_argument(
-        "--num-runs",
-        type=int,
-        default=5,
-        help="Number of runs with different data splits to do.",
+        "--num-runs", type=int, default=5, help="Number of runs with different data splits to do."
     )
 
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=0,
-        help="Random seed to use.",
-    )
+    parser.add_argument("--seed", type=int, default=0, help="Random seed to use.")
 
     parser.add_argument(
         "--train-sizes",
@@ -189,7 +181,7 @@ def eval_model(
             )
 
             for run_idx in range(num_samples):
-                logger.info(f"=== Evaluating on {task.name}, #train {train_size}, run {run_idx}",)
+                logger.info(f"=== Evaluating on {task.name}, #train {train_size}, run {run_idx}")
                 with prefix_log_msgs(
                     f" Test - Task {task.name} - Size {train_size:3d} - Run {run_idx}"
                 ), tempfile.TemporaryDirectory() as temp_out_folder:

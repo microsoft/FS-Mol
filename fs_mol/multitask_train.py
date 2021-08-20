@@ -184,7 +184,7 @@ def eval_model_by_finetuning_on_task(
 ) -> BinaryEvalMetrics:
     # Build the model afresh and load the shared weights.
     model = model_cls.build_from_model_file(
-        model_weights_file, quiet=quiet, device=device, config_overrides={"num_tasks": 1},
+        model_weights_file, quiet=quiet, device=device, config_overrides={"num_tasks": 1}
     )
     model.load_model_weights(model_weights_file, load_task_specific_weights=False)
 
@@ -200,9 +200,7 @@ def eval_model_by_finetuning_on_task(
         model=model,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
-        train_data=FSMolBatchIterable(
-            task_sample.train_samples, batcher, shuffle=True, seed=seed
-        ),
+        train_data=FSMolBatchIterable(task_sample.train_samples, batcher, shuffle=True, seed=seed),
         valid_fn=partial(
             validate_on_data_iterable,
             data_iterable=FSMolBatchIterable(task_sample.valid_samples, batcher),
@@ -216,14 +214,12 @@ def eval_model_by_finetuning_on_task(
         quiet=True,
     )
 
-    logger.log(
-        PROGRESS_LOG_LEVEL, f" Final validation loss:       {float(best_valid_metric):.5f}",
-    )
+    logger.log(PROGRESS_LOG_LEVEL, f" Final validation loss:       {float(best_valid_metric):.5f}")
     # Load best model state and eval on test data:
     best_trained_model_file = os.path.join(temp_out_folder, "best_model.pt")
     model.load_model_weights(best_trained_model_file, load_task_specific_weights=True)
     test_loss, _test_metrics = run_on_data_iterable(
-        model, data_iterable=FSMolBatchIterable(task_sample.test_samples, batcher), quiet=quiet,
+        model, data_iterable=FSMolBatchIterable(task_sample.test_samples, batcher), quiet=quiet
     )
     test_metrics = next(iter(_test_metrics.values()))
     logger.log(PROGRESS_LOG_LEVEL, f" Test loss:                   {float(test_loss):.5f}")
@@ -399,15 +395,7 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         "--readout_type",
         type=str,
         default="combined",
-        choices=[
-            "sum",
-            "min",
-            "max",
-            "mean",
-            "weighted_sum",
-            "weighted_mean",
-            "combined",
-        ],
+        choices=["sum", "min", "max", "mean", "weighted_sum", "weighted_mean", "combined"],
         help="Readout used to summarise atoms into a molecule",
     )
     parser.add_argument(

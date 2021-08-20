@@ -33,13 +33,7 @@ DEFAULT_GRID_SEARCH: Dict[str, Dict[str, List[Any]]] = {
         "max_features": ["auto", "sqrt", "log2"],
         "min_samples_leaf": [1, 2, 5],
     },
-    "kNN": {
-        "n_neighbors": [8, 16, 32, 64, 128],
-        "metric": [
-            "minkowski",
-            "mahalanobis",
-        ],
-    },
+    "kNN": {"n_neighbors": [8, 16, 32, 64, 128], "metric": ["minkowski", "mahalanobis"]},
 }
 
 NAME_TO_MODEL_CLS: Dict[str, Any] = {
@@ -70,7 +64,7 @@ def test(
     if use_grid_search:
         if grid_search_parameters is None:
             grid_search_parameters = DEFAULT_GRID_SEARCH[model_name]
-            grid_search = GridSearchCV(NAME_TO_MODEL_CLS[model_name](), grid_search_parameters,)
+            grid_search = GridSearchCV(NAME_TO_MODEL_CLS[model_name](), grid_search_parameters)
         grid_search.fit(X_train, y_train)
         model = grid_search.best_estimator_
     else:

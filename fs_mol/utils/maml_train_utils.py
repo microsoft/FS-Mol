@@ -166,8 +166,7 @@ def finetune_and_eval_on_task(
             valid_fn=partial(
                 validate_on_data_iterable,
                 data_iterable=TFGraphBatchIterable(
-                    samples=valid_samples,
-                    max_num_nodes=max_num_nodes_in_batch,
+                    samples=valid_samples, max_num_nodes=max_num_nodes_in_batch
                 ),
                 metric_to_use="loss",
                 quiet=True,
@@ -179,10 +178,7 @@ def finetune_and_eval_on_task(
             quiet=True,
         )
 
-    logger.log(
-        PROGRESS_LOG_LEVEL,
-        f" Best validation loss:        {float(best_valid_metric):.5f}",
-    )
+    logger.log(PROGRESS_LOG_LEVEL, f" Best validation loss:        {float(best_valid_metric):.5f}")
     # Load best model state and eval on test data:
     load_weights_verbosely(model_save_file, model)
 
@@ -226,9 +222,7 @@ def eval_model_by_finetuning_on_task(
     logger.info(
         f" Dataset sample has {task_sample.test_pos_label_ratio:.4f} positive label ratio in test data."
     )
-    logger.info(
-        f" Dataset sample test {metric_to_use}: {getattr(test_metrics, metric_to_use):.4f}"
-    )
+    logger.info(f" Dataset sample test {metric_to_use}: {getattr(test_metrics, metric_to_use):.4f}")
 
     return test_metrics
 
