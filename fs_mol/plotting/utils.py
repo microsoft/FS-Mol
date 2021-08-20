@@ -72,9 +72,9 @@ def plot_test_run(
     task: str,
     model_name: str,
     results_df: pd.DataFrame,
+    output_dir: str,
     grouping_column: str = "num_train_requested",
     plotting_metric: str = "average_precision_score",
-    output_dir: str = "outputs",
 ) -> plt.figure:
     """Plot the summary of results for a single test run.
 
@@ -136,63 +136,6 @@ def get_csv_paths(
     csv_summary_files = sorted(glob(os.path.join(input_dir, filestr)))
     return csv_summary_files
 
-
-def get_amlrun_csvs(
-    run,
-    output_dir: str = "results",
-    task_name_extraction_fn: Optional[Callable[[str], str]] = None,
-) -> List[str]:
-    """
-    Get complete paths to results csvs: each run is assumed to be for a single test task.
-    If mount_path is a valid path to a mounted drive, returns paths to csvs on mounted drive
-    If mount path is None or invalid, finds run csvs from run object, downloads to the results directory,
-    and returns full paths.
-
-    run: azureml ScriptRun object
-    output_dir: str
-    """
-
-    if task_name_extraction_fn is not None:
-        _task_name_extraction_fn = task_name_extraction_fn
-    else:
-        _task_name_extraction_fn = default_taskname_extractor_fn
-
-    run_files = run.get_file_names()
-    run_files_outputs_csvs = [
-        x for x in run_files if x.startswith("outputs") and x.endswith(".csv")
-    ]
-
-    run_csv_summary_file = []
-
-    # if there is more than one file put them into a separate directory.
-    if len(run_files_outputs_csvs) > 1:
-        for i, filename in enumerate(run_files_outputs_csvs):
-            # name for csv file without "outputs" from aml
-            basename = filename.split("/")[1]
-            task_name = _task_name_extraction_fn(basename)
-            output_path = os.path.join(output_dir, f"downloaded_{task_name}/{basename}")
-            print(f"downloading file {filename}, saving to {output_dir}.")
-            run.download_file(filename, output_file_path=output_path)
-            if i == 0:
-                df = pd.read_csv(output_path)
-            else:
-                df = pd.concat([df, pd.read_csv(output_path)], axis=0, ignore_index=True)
-        final_output_path = os.path.join(output_dir, basename)
-        df.to_csv(final_output_path, index=False, header=True)
-        run_csv_summary_file.append(final_output_path)
-    else:
-        # otherwise just download and append file name to return list
-        filename = run_files_outputs_csvs[0]
-        basename = filename.split("/")[1]
-        task_name = _task_name_extraction_fn(basename)
-        output_path = os.path.join(output_dir, basename)
-        print(f"downloading file {filename}, saving to {output_dir}.")
-        run.download_file(filename, output_file_path=output_path)
-        run_csv_summary_file.append(output_path)
-
-    return run_csv_summary_file
-
-
 def process_file(
     summary_dfs: Dict[int, pd.DataFrame],
     file: str,
@@ -202,7 +145,7 @@ def process_file(
     task_name_extraction_fn: Optional[Callable[[str], str]] = None,
     grouping_column: str = "num_train_requested",
     plot: bool = False,
-    plotting_metric: str = "roc_auc",
+    plotting_metric: str = "average_precision_score",
 ) -> Dict[int, pd.DataFrame]:
     print(f"processing {file}")
     if task_name_extraction_fn is not None:
@@ -210,23 +153,35 @@ def process_file(
     else:
         _task_name_extraction_fn = default_taskname_extractor_fn
 
+    if plot:
+        plot_dir = os.path.join(output_dir, "plot")
+        os.makedirs(plot_dir, exist_ok=True)
+    
+    # summary directory for results with means across repeat sample runs
+    summary_dir = os.path.join(output_dir, "collated")
+    os.makedirs(summary_dir, exist_ok=True)
+
     df = pd.read_csv(file)
     try:
+        # take means across the same value of grouping column
         _, results_df = summarize_test_run(df, grouping_column=grouping_column)
         assay = _task_name_extraction_fn(file)
         savename = f"{model_name}_{assay}.csv"
-        results_df.to_csv(os.path.join(output_dir, savename), header=True, index=True)
+        
+        # save out results with mean values
+        results_df.to_csv(os.path.join(summary_dir, savename), header=True, index=True)
         results_df.reset_index(inplace=True)
         results_df["assay"] = pd.Series([assay for x in range(len(df.index))])
 
+        # plot mean values for each fixed size of grouping column
         if plot:
             fig = plot_test_run(
                 assay,
                 model_name=model_name,
                 results_df=results_df,
-                grouping_column="num_train",  # use actual num train in contrast to grouping by "requested"
+                output_dir=plot_dir,
+                grouping_column="num_train_requested",
                 plotting_metric=plotting_metric,
-                output_dir=output_dir,
             )
             plt.close(fig)
 
@@ -252,7 +207,7 @@ def collate_experiment_results(
     y_col: str = "average_precision_score",
     task_col: str = "assay",
     task_number_prefix: str = "CHEMBL",
-    num_points: List[int] = [16, 32, 64, 128, 256],
+    support_set_size: List[int] = [16, 32, 64, 128, 256],
 ) -> pd.DataFrame:
 
     # method to join together all the results for a particular experiment,
@@ -266,7 +221,7 @@ def collate_experiment_results(
         "fraction_positive_test_std",
     ]
 
-    for num in num_points:
+    for num in support_set_size:
         try:
             df = pd.read_csv(os.path.join(results_dir, f"{model_name}_summary_{x_col}_{num}.csv"))
         except Exception as e:
