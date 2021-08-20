@@ -1,6 +1,5 @@
 import argparse
 import logging
-import os
 import pdb
 import sys
 import traceback
@@ -10,12 +9,13 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
-from fs_mol.data import DataFold
+from fs_mol.data.fsmol_task import FSMolTaskSample
 from fs_mol.data.multitask import get_multitask_inference_batcher
 from fs_mol.models.gnn_multitask import GNNMultitaskModel
 from fs_mol.multitask_train import eval_model_by_finetuning_on_task
+from fs_mol.utils.metrics import BinaryEvalMetrics
 from fs_mol.utils.multitask_utils import resolve_starting_model_file
-from fs_mol.utils.test_utils import add_eval_cli_args, set_up_test_run, write_csv_summary
+from fs_mol.utils.test_utils import add_eval_cli_args, eval_model, set_up_test_run
 
 
 logger = logging.getLogger(__name__)
@@ -77,26 +77,32 @@ def main():
         device=device,
     )
 
-    for task in dataset.get_task_reading_iterable(DataFold.TEST):
-        test_results = eval_model_by_finetuning_on_task(
+    def test_model_fn(
+        task_sample: FSMolTaskSample, temp_out_folder: str, seed: int
+    ) -> BinaryEvalMetrics:
+        return eval_model_by_finetuning_on_task(
             model_weights_file,
             model_cls=GNNMultitaskModel,
-            task=task,
+            task_sample=task_sample,
+            temp_out_folder=temp_out_folder,
             batcher=get_multitask_inference_batcher(max_num_graphs=args.batch_size),
-            train_set_sample_sizes=args.train_sizes,
-            test_set_size=None,
-            num_samples=args.num_runs,
             learning_rate=args.learning_rate,
             task_specific_learning_rate=args.task_specific_lr,
             metric_to_use="avg_precision",
-            seed=args.seed,
+            seed=seed,
             quiet=True,
             device=device,
         )
 
-        write_csv_summary(
-            os.path.join(args.save_dir, f"{task.name}_eval_results.csv"), test_results
-        )
+    eval_model(
+        test_model_fn=test_model_fn,
+        dataset=dataset,
+        train_set_sample_sizes=args.train_sizes,
+        out_dir=args.save_dir,
+        num_samples=args.num_runs,
+        valid_size_or_ratio=0.2,
+        seed=args.seed,
+    )
 
 
 if __name__ == "__main__":
