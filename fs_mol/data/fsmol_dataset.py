@@ -62,40 +62,22 @@ class FSMolDataset:
         return len(self._fold_to_data_paths[fold])
 
     @staticmethod
-    def from_task_split_file(
-        data_path: Union[str, RichPath], task_split_path: Union[str, RichPath], **kwargs
-    ) -> "FSMolDataset":
-        """Create a new FSMolDataset object from a data path (containing the pre-processed tasks)
-        and a JSON file describing how the tasks are split across train/valid/test.
+    def from_directory(directory: Union[str, RichPath], **kwargs) -> "FSMolDataset":
+        """Create a new FSMolDataset object from a directory containing the pre-processed
+        files (*.jsonl.gz) split in to train/valid/test subdirectories.
 
         Args:
-            data_path: Path containing .jsonl.gz files representing the pre-processed tasks.
-            task_split_path: Path to a JSON file containing a dictionary listing the names of the
-                train, validation, and test tasks.
+            directory: Path containing .jsonl.gz files representing the pre-processed tasks.
             **kwargs: remaining arguments are forwarded to the FSMolDataset constructor.
         """
-        if isinstance(data_path, str):
-            data_rp = RichPath.create(data_path)
+        if isinstance(directory, str):
+            data_rp = RichPath.create(directory)
         else:
-            data_rp = data_path
-
-        if isinstance(task_split_path, str):
-            task_split_file_rp = RichPath.create(task_split_path)
-        else:
-            task_split_file_rp = task_split_path
-
-        all_task_file_names = data_rp.get_filtered_files_in_dir("*.jsonl.gz")
-        fold_to_task_name_list = task_split_file_rp.read_by_file_suffix()
+            data_rp = directory
 
         def get_fold_file_names(data_fold_name: str):
-            return [
-                file_name
-                for file_name in all_task_file_names
-                if any(
-                    file_name.basename() == f"{task_name}.jsonl.gz"
-                    for task_name in fold_to_task_name_list[data_fold_name]
-                )
-            ]
+            fold_dir = data_rp.join(data_fold_name)
+            return fold_dir.get_filtered_files_in_dir("*.jsonl.gz")
 
         return FSMolDataset(
             train_data_paths=get_fold_file_names("train"),
