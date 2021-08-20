@@ -4,7 +4,7 @@ import time
 from multiprocessing import Queue, Process, Event
 from multiprocessing.synchronize import Event as EventType
 from queue import Empty
-from typing import List, Iterator, TypeVar, Callable, Union, Type, Iterable
+from typing import List, Iterator, TypeVar, Callable, Iterable, Union, Type
 
 import numpy as np
 from dpu_utils.utils import RichPath
@@ -14,11 +14,13 @@ logger = logging.getLogger(__name__)
 
 
 ReaderOutputType = TypeVar("ReaderOutputType")
+QueueRichPathType = TypeVar("QueueRichPathType")
+QueueReaderOutputType = TypeVar("QueueReaderOutputType")
 
 
 def read_file_from_path_queue(
-    input_paths: "Queue[RichPath]",
-    output_queue: "Queue[Union[Type[Empty], ReaderOutputType]]",
+    input_paths: QueueRichPathType,
+    output_queue: QueueReaderOutputType,
     reader_fn: Callable[[List[RichPath], int], Iterable[ReaderOutputType]],
     termination_signal: EventType,
     reader_chunk_size: int,
