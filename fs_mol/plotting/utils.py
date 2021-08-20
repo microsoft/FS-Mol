@@ -29,9 +29,9 @@ def default_taskname_extractor_fn(filename: str) -> str:
 
 
 def summarize_test_run(
-    df, grouping_column: str = "train_frac", control_col_strings: str = "num|_frac|seed"
+    df, grouping_column: str = "num_train_requested", control_col_strings: str = "num|_frac|seed"
 ) -> Tuple[int, pd.DataFrame]:
-    """Takes a csv output from running finetuning_eval.py on one test dataset,
+    """Takes a csv output from running evaluation on one test dataset,
     and summarises data; means and standard deviations across runs with the same
     value of "grouping_column" are found. Returned as collapsed summary dataframe.
 
