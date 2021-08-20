@@ -14,7 +14,8 @@ from plotting.utils import (
     process_file,
     get_csv_paths,
     collate_experiment_results,
-) 
+)
+
 
 def collate_results(
     task_csvs: str,
@@ -88,9 +89,7 @@ def run(args):
         support_set_size=args.support_set_sizes,
     )
 
-    results.to_csv(
-        os.path.join(output_dir, f"{args.MODEL}_summary.csv"), header=True, index=False
-    )
+    results.to_csv(os.path.join(output_dir, f"{args.MODEL}_summary.csv"), header=True, index=False)
 
 
 if __name__ == "__main__":
@@ -110,9 +109,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "INPUT_DIR",
         type=str,
-        help=(
-            "Directory containing csv files from experiments to collate."
-        ),
+        help=("Directory containing csv files from experiments to collate."),
     )
 
     parser.add_argument(

@@ -136,6 +136,7 @@ def get_csv_paths(
     csv_summary_files = sorted(glob(os.path.join(input_dir, filestr)))
     return csv_summary_files
 
+
 def process_file(
     summary_dfs: Dict[int, pd.DataFrame],
     file: str,
@@ -156,7 +157,7 @@ def process_file(
     if plot:
         plot_dir = os.path.join(output_dir, "plot")
         os.makedirs(plot_dir, exist_ok=True)
-    
+
     # summary directory for results with means across repeat sample runs
     summary_dir = os.path.join(output_dir, "collated")
     os.makedirs(summary_dir, exist_ok=True)
@@ -167,7 +168,7 @@ def process_file(
         _, results_df = summarize_test_run(df, grouping_column=grouping_column)
         assay = _task_name_extraction_fn(file)
         savename = f"{model_name}_{assay}.csv"
-        
+
         # save out results with mean values
         results_df.to_csv(os.path.join(summary_dir, savename), header=True, index=True)
         results_df.reset_index(inplace=True)
