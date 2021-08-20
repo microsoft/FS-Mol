@@ -191,7 +191,7 @@ def eval_model(
             for run_idx in range(num_samples):
                 logger.info(f"=== Evaluating on {task.name}, #train {train_size}, run {run_idx}",)
                 with prefix_log_msgs(
-                    f" Inner - {task.name} - Size {train_size:3d} - Run {run_idx}"
+                    f" Test - Task {task.name} - Size {train_size:3d} - Run {run_idx}"
                 ), tempfile.TemporaryDirectory() as temp_out_folder:
                     local_seed = seed + run_idx
 

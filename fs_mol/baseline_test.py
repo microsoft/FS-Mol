@@ -61,7 +61,7 @@ def test(
     # get data in to form for sklearn
     X_train = np.array([x.get_fingerprint() for x in train_data])
     X_test = np.array([x.get_fingerprint() for x in test_data])
-    logger.info(f" Training with {X_train.shape[0]} datapoints.")
+    logger.info(f" Training {model_name} with {X_train.shape[0]} datapoints.")
     y_train = [float(x.bool_label) for x in train_data]
     y_test = [float(x.bool_label) for x in test_data]
 
