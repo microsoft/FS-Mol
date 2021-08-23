@@ -79,7 +79,10 @@ def parse_command_line():
         "--clip_value", type=float, default=1.0, help="Gradient norm clipping value"
     )
     parser.add_argument(
-        "--pretrained_gnn", type=str, default=None, help="Path to a pretrained GNN model to use as a starting point."
+        "--pretrained_gnn",
+        type=str,
+        default=None,
+        help="Path to a pretrained GNN model to use as a starting point.",
     )
     args = parser.parse_args()
     return args
@@ -119,7 +122,6 @@ def main():
     if args.pretrained_gnn is not None:
         logger.info(f"Loading pretrained GNN weights from {args.pretrained_gnn}.")
         model_trainer.load_model_gnn_weights(path=args.pretrained_gnn, device=device)
-
 
     model_trainer.train_loop(out_dir, dataset, aml_run)
 

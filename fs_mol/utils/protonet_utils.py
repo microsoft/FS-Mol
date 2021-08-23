@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
+from functools import partial
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -12,6 +13,7 @@ sys.path.insert(0, str(project_root()))
 
 from fs_mol.data.fsmol_dataset import DataFold, FSMolDataset
 from fs_mol.data.protonet import ProtoNetBatch, get_protonet_task_sample_iterable
+from fs_mol.models.abstract_torch_fsmol_model import linear_warmup
 from fs_mol.models.protonet import PrototypicalNetwork, PrototypicalNetworkConfig
 from fs_mol.utils.metrics import BinaryEvalMetrics, compute_binary_task_metrics, avg_metrics_list
 from fs_mol.utils.metric_logger import MetricLogger
@@ -80,6 +82,7 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
         super().__init__(config)
         self.config = config
         self.optimizer = torch.optim.Adam(self.parameters(), config.learning_rate)
+        self.lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None
 
     def get_model_state(self) -> Dict[str, Any]:
         return {
@@ -131,14 +134,36 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
         gnn_model_state_dict = pretrained_state_dict["model_state_dict"]
         our_state_dict = self.state_dict()
 
-        # This is somewhat specialised to the case of using weights from the GNNMultitask model:
-        for name, param in gnn_model_state_dict.items():
-            if name.startswith("gnn.gnn_blocks") or name.startswith("init_node_proj"):
-                our_name = f"graph_feature_extractor.{name}"
-                our_state_dict[our_name].copy_(param)
+        # Load parameters (names specialised to GNNMultitask model), but also collect
+        # parameters for GNN parts / rest, so that we can create a LR warmup schedule:
+        gnn_params, other_params = [], []
+        gnn_feature_extractor_param_name = "graph_feature_extractor."
+        for our_name, our_param in our_state_dict.items():
+            if our_name.startswith(gnn_feature_extractor_param_name) and not "final_norm_layer" in our_name:
+                generic_name = our_name[len(gnn_feature_extractor_param_name) :]
+                if generic_name.startswith("readout_layer."):
+                    generic_name = f"readout{generic_name[len('readout_layer'):]}"
+                our_param.copy_(gnn_model_state_dict[generic_name])
+                logger.debug(f"I: Loaded parameter {our_name} from {generic_name} in {path}.")
+                gnn_params.append(our_param)
             else:
-                logger.debug(f"I: Not loading parameter {name}")
+                logger.debug(f"I: Not loading parameter {our_name}.")
+                other_params.append(our_param)
 
+        self.optimizer = torch.optim.Adam(
+            [
+                {"params": other_params, "lr": self.config.learning_rate},
+                {"params": gnn_params, "lr": self.config.learning_rate / 10},
+            ],
+        )
+
+        self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer=self.optimizer,
+            lr_lambda=[
+                partial(linear_warmup, warmup_steps=0),  # for all params
+                partial(linear_warmup, warmup_steps=100),  # for loaded GNN params
+            ],
+        )
 
     @classmethod
     def build_from_model_file(
@@ -208,6 +233,8 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
             if self.config.clip_value is not None:
                 torch.nn.utils.clip_grad_norm_(self.parameters(), self.config.clip_value)
             self.optimizer.step()
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
             task_batch_mean_loss = np.mean(task_batch_losses)
             task_batch_avg_metrics = avg_metrics_list(task_batch_metrics)
@@ -231,14 +258,15 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
                 valid_losses: List[float] = []
                 valid_metrics: List[BinaryEvalMetrics] = []
                 for task_sample in valid_task_sample_iterable:
-                    task_loss, task_metrics = run_on_batches(
-                        self,
-                        task_sample.batches,
-                        batch_labels=task_sample.batch_labels,
-                        train=False,
-                    )
-                    valid_losses.append(task_loss)
-                    valid_metrics.append(task_metrics)
+                    with torch.set_grad_enabled(False):
+                        task_loss, task_metrics = run_on_batches(
+                            self,
+                            task_sample.batches,
+                            batch_labels=task_sample.batch_labels,
+                            train=False,
+                        )
+                        valid_losses.append(task_loss)
+                        valid_metrics.append(task_metrics)
                 mean_valid_loss = np.mean(valid_losses)
                 avg_valid_metrics = avg_metrics_list(valid_metrics)
 

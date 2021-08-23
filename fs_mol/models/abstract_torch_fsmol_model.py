@@ -86,6 +86,12 @@ class AbstractTorchFSMolModel(Generic[BatchFeaturesType], torch.nn.Module):
         raise NotImplementedError()
 
 
+def linear_warmup(cur_step: int, warmup_steps: int = 0) -> float:
+    if cur_step >= warmup_steps:
+        return 1.0
+    return cur_step / warmup_steps
+
+
 def create_optimizer(
     model: AbstractTorchFSMolModel[BatchFeaturesType],
     lr: float = 0.001,
@@ -107,11 +113,6 @@ def create_optimizer(
             {"params": shared_parameters, "lr": lr},
         ],
     )
-
-    def linear_warmup(cur_step: int, warmup_steps: int = 0) -> float:
-        if cur_step >= warmup_steps:
-            return 1.0
-        return cur_step / warmup_steps
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(
         optimizer=opt,
