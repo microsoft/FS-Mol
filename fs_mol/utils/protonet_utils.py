@@ -121,6 +121,25 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
             for name, param in optimizer_weights.items():
                 self.optimizer.state_dict()[name].copy_(param)
 
+    def load_model_gnn_weights(
+        self,
+        path: str,
+        device: Optional[torch.device] = None,
+    ):
+        pretrained_state_dict = torch.load(path, map_location=device)
+
+        gnn_model_state_dict = pretrained_state_dict["model_state_dict"]
+        our_state_dict = self.state_dict()
+
+        # This is somewhat specialised to the case of using weights from the GNNMultitask model:
+        for name, param in gnn_model_state_dict.items():
+            if name.startswith("gnn.gnn_blocks") or name.startswith("init_node_proj"):
+                our_name = f"graph_feature_extractor.{name}"
+                our_state_dict[our_name].copy_(param)
+            else:
+                logger.debug(f"I: Not loading parameter {name}")
+
+
     @classmethod
     def build_from_model_file(
         cls,

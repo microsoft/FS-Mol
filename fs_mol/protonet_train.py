@@ -7,6 +7,7 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
+from fs_mol.modules.gnn import add_gnn_model_arguments, make_gnn_config_from_args
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run
 from fs_mol.utils.protonet_utils import (
     PrototypicalNetworkTrainerConfig,
@@ -47,6 +48,8 @@ def parse_command_line():
         default="mahalanobis",
         help="Choice of distance to use.",
     )
+    add_gnn_model_arguments(parser)
+
     parser.add_argument("--support_set_size", type=int, default=16, help="Size of support set")
     parser.add_argument(
         "--query_set_size",
@@ -60,6 +63,7 @@ def parse_command_line():
         default=16,
         help="Number of tasks to accumulate gradients for.",
     )
+
     parser.add_argument("--batch_size", type=int, default=256, help="Number of examples per batch.")
     parser.add_argument(
         "--num_train_steps", type=int, default=10000, help="Number of training steps."
@@ -72,7 +76,10 @@ def parse_command_line():
     )
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
     parser.add_argument(
-        "--clip-value", type=float, default=1.0, help="Gradient norm clipping value"
+        "--clip_value", type=float, default=1.0, help="Gradient norm clipping value"
+    )
+    parser.add_argument(
+        "--pretrained_gnn", type=str, default=None, help="Path to a pretrained GNN model to use as a starting point."
     )
     args = parser.parse_args()
     return args
@@ -80,6 +87,7 @@ def parse_command_line():
 
 def make_trainer_config(args: argparse.Namespace) -> PrototypicalNetworkTrainerConfig:
     return PrototypicalNetworkTrainerConfig(
+        gnn_config=make_gnn_config_from_args(args),
         used_features=args.features,
         distance_metric=args.distance_metric,
         batch_size=args.batch_size,
@@ -107,6 +115,11 @@ def main():
     logger.info(f"\tDevice: {device}")
     logger.info(f"\tNum parameters {sum(p.numel() for p in model_trainer.parameters())}")
     logger.info(f"\tModel:\n{model_trainer}")
+
+    if args.pretrained_gnn is not None:
+        logger.info(f"Loading pretrained GNN weights from {args.pretrained_gnn}.")
+        model_trainer.load_model_gnn_weights(path=args.pretrained_gnn, device=device)
+
 
     model_trainer.train_loop(out_dir, dataset, aml_run)
 

@@ -37,9 +37,9 @@ from fs_mol.models.abstract_torch_fsmol_model import (
 from fs_mol.models.gnn_multitask import (
     GNNMultitaskConfig,
     GNNMultitaskModel,
-    GNNConfig,
     create_model,
 )
+from fs_mol.modules.gnn import add_gnn_model_arguments, make_gnn_config_from_args
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
 from fs_mol.utils.metrics import (
     avg_metrics_list,
@@ -113,40 +113,7 @@ def validate_by_finetuning_on_tasks(
 
 
 def add_model_arguments(parser: argparse.ArgumentParser):
-    # GNN parameters.
-    parser.add_argument(
-        "--gnn_type",
-        type=str,
-        default="PNA",
-        choices=["MultiHeadAttention", "MultiAggr", "PNA", "Plain"],
-        help="Type of GNN architecture to use.",
-    )
-    parser.add_argument(
-        "--num_gnn_layers", type=int, default=10, help="Number of GNN layers to use."
-    )
-    parser.add_argument(
-        "--node_embed_dim", type=int, default=128, help="Size of GNN node representations."
-    )
-    parser.add_argument(
-        "--num_heads",
-        type=int,
-        default=4,
-        help="Number of heads used in each GNN message propagation step. Relevant in MultiHeadAttention.",
-    )
-    parser.add_argument(
-        "--per_head_dim",
-        type=int,
-        default=64,
-        help="Size of message representation in each attention head.",
-    )
-    parser.add_argument(
-        "--intermediate_dim",
-        type=int,
-        default=1024,
-        help="Size of intermediate representation used in BOOM layer. Set to 0 to deactivate BOOM layer.",
-    )
-    parser.add_argument("--message_function_depth", type=int, default=1)
-
+    add_gnn_model_arguments(parser)
     parser.add_argument(
         "--readout_type",
         type=str,
@@ -169,16 +136,7 @@ def make_model_from_args(
     model_config = GNNMultitaskConfig(
         num_tasks=num_tasks,
         node_feature_dim=NUM_NODE_FEATURES,
-        gnn_config=GNNConfig(
-            type=args.gnn_type,
-            hidden_dim=args.node_embed_dim,
-            num_edge_types=NUM_EDGE_TYPES,
-            num_heads=args.num_heads,
-            per_head_dim=args.per_head_dim,
-            intermediate_dim=args.intermediate_dim,
-            message_function_depth=args.message_function_depth,
-            num_layers=args.num_gnn_layers,
-        ),
+        gnn_config=make_gnn_config_from_args(args),
         num_outputs=1,
         readout_type=args.readout_type,
         readout_use_only_last_timestep=not args.readout_use_all_states,
