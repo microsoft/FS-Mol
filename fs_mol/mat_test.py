@@ -16,10 +16,12 @@ sys.path.insert(0, os.path.join(str(project_root()), "third_party", "MAT", "src"
 
 from fs_mol.data import FSMolTaskSample
 from fs_mol.data.mat import FSMolMATBatch, get_mat_batcher, mat_task_reader_fn
-from fs_mol.models.interface import AbstractTorchModel
+from fs_mol.models.abstract_torch_fsmol_model import (
+    AbstractTorchFSMolModel,
+    resolve_starting_model_file,
+)
 from fs_mol.multitask_train import eval_model_by_finetuning_on_task
 from fs_mol.utils.metrics import BinaryEvalMetrics
-from fs_mol.utils.multitask_utils import resolve_starting_model_file
 from fs_mol.utils.test_utils import add_eval_cli_args, eval_model, set_up_test_run
 
 # Assumes that MAT is in the python lib path:
@@ -29,7 +31,7 @@ from transformer import GraphTransformer, make_model
 logger = logging.getLogger(__name__)
 
 
-class MATModel(GraphTransformer, AbstractTorchModel[FSMolMATBatch]):
+class MATModel(GraphTransformer, AbstractTorchFSMolModel[FSMolMATBatch]):
     def forward(self, batch: FSMolMATBatch) -> Any:
         mask = torch.sum(torch.abs(batch.node_features), dim=-1) != 0
 
