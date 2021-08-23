@@ -236,7 +236,7 @@ def run_on_data_iterable(
         if hasattr(batch, "sample_to_task_id"):
             sample_to_task_it = batch.sample_to_task_id
         else:
-            # If we don't have a sample task information, just 0 as default task ID:
+            # If we don't have a sample task information, just use 0 as default task ID:
             sample_to_task_it = defaultdict(lambda: 0)
 
         # Apply sigmoid to have predictions in appropriate range for computing (scikit) scores.
