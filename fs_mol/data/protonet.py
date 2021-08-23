@@ -116,6 +116,21 @@ def task_sample_to_pn_task_sample(
     )
 
 
+def get_protonet_batcher(
+    max_num_graphs: Optional[int] = None,
+    max_num_nodes: Optional[int] = None,
+    max_num_edges: Optional[int] = None,
+) -> FSMolBatcher[MoleculeProtoNetFeatures, np.ndarray]:
+    return FSMolBatcher(
+        max_num_graphs,
+        max_num_nodes,
+        max_num_edges,
+        init_callback=batcher_init_fn,
+        per_datapoint_callback=batcher_add_sample_fn,
+        finalizer_callback=batcher_finalizer_fn,
+    )
+
+
 def get_protonet_task_sample_iterable(
     dataset: FSMolDataset,
     data_fold: DataFold,
@@ -130,13 +145,10 @@ def get_protonet_task_sample_iterable(
     task_sampler = StratifiedTaskSampler(
         train_size_or_ratio=support_size, test_size_or_ratio=query_size
     )
-    batcher = FSMolBatcher(
-        max_num_graphs,
-        max_num_nodes,
-        max_num_edges,
-        init_callback=batcher_init_fn,
-        per_datapoint_callback=batcher_add_sample_fn,
-        finalizer_callback=batcher_finalizer_fn,
+    batcher = get_protonet_batcher(
+        max_num_graphs=max_num_graphs,
+        max_num_nodes=max_num_nodes,
+        max_num_edges=max_num_edges,
     )
 
     def path_to_batches_pipeline(paths: List[RichPath], idx: int):

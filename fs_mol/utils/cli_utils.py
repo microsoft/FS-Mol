@@ -16,12 +16,10 @@ logger = logging.getLogger(__name__)
 
 
 def add_train_cli_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("DATA_PATH", type=str, help="Directory containing the task data.")
-
     parser.add_argument(
-        "TASK_FILE_LIST",
+        "DATA_PATH",
         type=str,
-        help="JSON file specifying which assays are in the train/valid/test folds.",
+        help="Directory containing the task data in train/valid/test subdirectories.",
     )
 
     parser.add_argument(
@@ -58,11 +56,9 @@ def set_up_train_run(
     logger.info(f"\tArguments: {args}")
     logger.info(f"\tOutput dir: {out_dir}")
     logger.info(f"\tData path: {args.DATA_PATH}")
-    logger.info(f"\tTask split: {args.TASK_FILE_LIST}")
 
-    fsmol_dataset = FSMolDataset.from_task_split_file(
-        data_path=RichPath.create(args.DATA_PATH),
-        task_split_path=RichPath.create(args.TASK_FILE_LIST),
+    fsmol_dataset = FSMolDataset.from_directory(
+        directory=RichPath.create(args.DATA_PATH),
     )
 
     if args.azureml_logging:

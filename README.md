@@ -1,14 +1,20 @@
-# Project
+# FS-Mol: A Few-Shot Learning Dataset of Molecules
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+This repository contains code and data for FS-Mol: A Few-Shot Learning Dataset of Molecules. 
 
-As the maintainer of this project, please make a few updates:
+## Installation
 
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+## Datasets
+
+## Available Model Implementations
+
+We provide implementations for the three key few-shot learning models, as well as evaluation on the Single-Task baselines and MAT. 
+
+## Available Model Checkpoints
+
+## Specifying New Model Implementations
+
+Flexible definition of few-shot models and single task models is defined as demonstrated in the range of train and test scripts in `fs_mol`. 
 
 ## Contributing
 
