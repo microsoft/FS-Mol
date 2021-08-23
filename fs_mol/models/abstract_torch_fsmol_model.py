@@ -149,7 +149,7 @@ def resolve_starting_model_file(
     use_fresh_param_init: bool,
     config_overrides: Dict[str, Any] = {},
     device: Optional[torch.device] = None,
-):
+) -> str:
     # If we start from a fresh init, create a model, do a random init, and store that away somewhere:
     if use_fresh_param_init:
         logger.info("Using fresh model init.")
