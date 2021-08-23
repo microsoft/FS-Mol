@@ -136,6 +136,13 @@ def autothreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:
     3) Apply the threshold to the data series.
 
     For activity measurements, log standard value is used.
+
+    CHANGED VERSION: 
+
+    range of allowed thresholds is 5-7 for everything (too much removed with 4-6)
+    If the median is the same as the most common value (i.e. a pile of measurements with the 
+    same value because it is a qualified value) the threshold is placed just above to exclude
+    these as inactive.
     """
 
     df = pd.DataFrame(x)
@@ -148,17 +155,31 @@ def autothreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:
         # (this means there has been more a HTS and most measurements were
         # of obviously bad molecules. Permit > 50% as sign of some activity)
         median = df["standard_value"].median()
+        threshold = median
         buffer = df["standard_value"].std() / 10
         if not 50.0 <= median:
-            median = 50.0
+            threshold = 50.0
 
         df["activity_string"] = df.apply(
-            inhibition_threshold, args=(median,), buffer=buffer, axis=1
+            inhibition_threshold, args=(threshold,), buffer=buffer, axis=1
         )
     else:
+        threshold_limits = (5, 7)
         # get median
         median = df["log_standard_value"].median()
+        threshold = median
         buffer = df["log_standard_value"].std() / 10
+
+        # NEW VERSION
+        # if df["log_standard_value"].value_counts().idxmax() == median:
+        #     threshold = median + 0.001
+        # else:
+        #     if median < threshold_limits[0]: 
+        #         threshold = threshold_limits[0]
+        #     elif median > threshold_limits[1]:
+        #         threshold = threshold_limits[1]
+
+        # OLD VERSION
         # use as a threshold provided it is in a sensible
         # range. This was chosen as pKI 4-6 in general, 5-7 for enzymes
         if "protein_class_desc" in df.columns:
@@ -170,11 +191,13 @@ def autothreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:
             threshold_limits = (4, 6)
 
         if median < threshold_limits[0] or median > threshold_limits[1]:
-            median = 5.0
+            threshold = 5.0
+        else:
+            threshold = median
 
-        df["activity_string"] = df.apply(activity_threshold, args=(median,), buffer=buffer, axis=1)
+        df["activity_string"] = df.apply(activity_threshold, args=(threshold,), buffer=buffer, axis=1)
 
-    return df, median
+    return df, threshold
 
 
 def fixedthreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:
