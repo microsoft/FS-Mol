@@ -113,7 +113,7 @@ def main():
     test(
         model,
         dataset,
-        save_dir=args.save_dir,
+        save_dir=out_dir,
         context_sizes=args.train_sizes,
         num_samples=args.num_runs,
         seed=args.seed,

@@ -98,7 +98,7 @@ def main():
         test_model_fn=test_model_fn,
         dataset=dataset,
         train_set_sample_sizes=args.train_sizes,
-        out_dir=args.save_dir,
+        out_dir=out_dir,
         num_samples=args.num_runs,
         valid_size_or_ratio=0.2,
         seed=args.seed,
