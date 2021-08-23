@@ -27,7 +27,6 @@ class PrototypicalNetworkConfig:
         message_function_depth=1,
         num_layers=8,
     )
-    gnn_feature_dim: int = 512
     used_features: Literal[
         "gnn", "ecfp", "pc-descs", "gnn+ecfp", "ecfp+fc", "pc-descs+fc", "gnn+ecfp+pc-descs+fc"
     ] = "gnn+ecfp+fc"
@@ -51,6 +50,9 @@ class GraphFeatureExtractor(nn.Module):
             num_heads=12,
             head_dim=64,
         )
+        self.final_norm_layer = nn.BatchNorm1d(
+            num_features=embedding_dim
+        )
 
     @property
     def device(self) -> torch.device:
@@ -69,7 +71,7 @@ class GraphFeatureExtractor(nn.Module):
             ),
             num_graphs=input.num_graphs,
         )
-        return mol_representations
+        return self.final_norm_layer(mol_representations)
 
 
 class PrototypicalNetwork(nn.Module):
@@ -79,12 +81,13 @@ class PrototypicalNetwork(nn.Module):
     ):
         super().__init__()
         self.config = config
+        self.gnn_feature_dim = 4 * config.gnn_config.hidden_dim
 
         # Create GNN if needed:
         if self.config.used_features.startswith("gnn"):
             self.graph_feature_extractor = GraphFeatureExtractor(
                 gnn_config=config.gnn_config,
-                embedding_dim=config.gnn_feature_dim,
+                embedding_dim=self.gnn_feature_dim,
             )
 
         # Create MLP if needed:
@@ -92,7 +95,7 @@ class PrototypicalNetwork(nn.Module):
             # Determine dimension:
             fc_in_dim = 0
             if "gnn" in self.config.used_features:
-                fc_in_dim += self.config.gnn_feature_dim
+                fc_in_dim += self.gnn_feature_dim
             if "ecfp" in self.config.used_features:
                 fc_in_dim += FINGERPRINT_DIM
             if "pc-descs" in self.config.used_features:
