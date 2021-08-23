@@ -183,7 +183,8 @@ def run_on_data_iterable(
 
     Args:
         model: Model to run things on.
-        data_iterable: Iterable that provides the data we run on.
+        data_iterable: Iterable that provides the data we run on; data has been batched
+            by an appropriate batcher.
         optimizer: Optional optimizer. If present, the given model will be trained.
         lr_scheduler: Optional learning rate scheduler around optimizer.
         max_num_steps: Optional number of steps. If not provided, will run until end of data loader.
@@ -266,7 +267,7 @@ def validate_on_data_iterable(
     # If our data_iterable had more than one task, we'll have one result per task - average them:
     mean_valid_metrics = avg_metrics_list(list(valid_metrics.values()))
     if metric_to_use == "loss":
-        return -valid_loss  # We are maximising things, so flip the sign on the loss
+        return -valid_loss  # We are maximising things elsewhere, so flip the sign on the loss
     else:
         return mean_valid_metrics[metric_to_use][0]
 
