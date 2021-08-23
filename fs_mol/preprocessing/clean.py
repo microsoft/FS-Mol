@@ -48,18 +48,6 @@ from preprocessing.utils.cleaning_utils import (
 logger = logging.getLogger(__name__)
 
 
-class CleaningFailedException(Exception):
-    def __init__(
-        self,
-        assay: str,
-    ):
-        super().__init__()
-        self.assay = assay
-
-    def __str__(self):
-        return f"Full cleaning of assay {self.assay} failed. \n"
-
-
 def select_assays(x: pd.DataFrame, **kwargs) -> pd.DataFrame:
     """
     Initial cleaning of all datapoints in an assay/file.
