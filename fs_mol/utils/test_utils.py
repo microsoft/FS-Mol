@@ -1,17 +1,26 @@
 import argparse
 import csv
+import dataclasses
+import tempfile
 import json
 import logging
 import os
 import time
 from dataclasses import dataclass
-from typing import Iterable, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from dpu_utils.utils.richpath import RichPath
 
 from fs_mol.data.fsmol_dataset import DataFold, FSMolDataset
+from fs_mol.data.fsmol_task import FSMolTask, FSMolTaskSample
+from fs_mol.data.fsmol_task_sampler import (
+    DatasetClassTooSmallException,
+    DatasetTooSmallException,
+    FoldTooSmallException,
+    StratifiedTaskSampler,
+)
 from fs_mol.utils.cli_utils import set_seed
-from fs_mol.utils.logging import set_up_logging
+from fs_mol.utils.logging import prefix_log_msgs, set_up_logging
 from fs_mol.utils.metrics import BinaryEvalMetrics
 
 
@@ -35,16 +44,9 @@ def add_data_cli_args(parser: argparse.ArgumentParser) -> None:
         nargs="+",
         help=(
             "File(s) containing the test data."
-            " If this is a directory, --task-file-list is required to define the test tasks."
+            " If this is a directory, all files in dir/test will be evaluated."
             " Otherwise, it is the data file(s) on which testing is done."
         ),
-    )
-
-    parser.add_argument(
-        "--task-file-list",
-        type=str,
-        default=None,
-        help="JSON dictionary file with lists of train/test/valid tasks.",
     )
 
 
@@ -59,18 +61,10 @@ def add_eval_cli_args(parser: argparse.ArgumentParser) -> None:
     )
 
     parser.add_argument(
-        "--num-runs",
-        type=int,
-        default=5,
-        help="Number of runs with different data splits to do.",
+        "--num-runs", type=int, default=5, help="Number of runs with different data splits to do."
     )
 
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=0,
-        help="Random seed to use.",
-    )
+    parser.add_argument("--seed", type=int, default=0, help="Random seed to use.")
 
     parser.add_argument(
         "--train-sizes",
@@ -89,11 +83,12 @@ def add_eval_cli_args(parser: argparse.ArgumentParser) -> None:
 
 def set_up_dataset(args: argparse.Namespace, **kwargs):
     # Handle the different task entry methods.
-    if args.task_file_list is not None:
+    # Permit a directory or a list of files
+    if len(args.DATA_PATH) == 1 and RichPath.create(args.DATA_PATH[0]).is_dir():
         assert (
-            len(args.DATA_PATH) == 1
-        ), "DATA_PATH argument should be directory only if task_file_list arg is passed."
-        return FSMolDataset.from_task_split_file(args.DATA_PATH[0], args.task_file_list, **kwargs)
+            RichPath.create(args.DATA_PATH[0]).join("test").exists()
+        ), "If DATA_PATH is a directory it must contain test/ sub-directory for evaluation."
+        return FSMolDataset.from_directory(args.DATA_PATH[0], **kwargs)
     else:
         return FSMolDataset(test_data_paths=[RichPath.create(p) for p in args.DATA_PATH], **kwargs)
 
@@ -158,3 +153,71 @@ def write_csv_summary(output_csv_file: str, test_results: Iterable[FSMolTaskSamp
                     "delta_auprc": test_result.avg_precision - test_result.fraction_pos_test,
                 }
             )
+
+
+def eval_model(
+    test_model_fn: Callable[[FSMolTaskSample, str, int], BinaryEvalMetrics],
+    dataset: FSMolDataset,
+    train_set_sample_sizes: List[int],
+    out_dir: Optional[str] = None,
+    num_samples: int = 5,
+    valid_size_or_ratio: Union[int, float] = 0.0,
+    test_size_or_ratio: Optional[Union[int, float, Tuple[int, int]]] = None,
+    fold: DataFold = DataFold.TEST,
+    task_reader_fn: Optional[Callable[[List[RichPath], int], Iterable[FSMolTask]]] = None,
+    seed: int = 0,
+) -> Dict[str, List[FSMolTaskSampleEvalResults]]:
+    task_reading_kwargs = {"task_reader_fn": task_reader_fn} if task_reader_fn is not None else {}
+    task_to_results: Dict[str, List[FSMolTaskSampleEvalResults]] = {}
+
+    for task in dataset.get_task_reading_iterable(fold, **task_reading_kwargs):
+        test_results: List[FSMolTaskSampleEvalResults] = []
+        for train_size in train_set_sample_sizes:
+            task_sampler = StratifiedTaskSampler(
+                train_size_or_ratio=train_size,
+                valid_size_or_ratio=valid_size_or_ratio,
+                test_size_or_ratio=test_size_or_ratio,
+                allow_smaller_test=True,
+            )
+
+            for run_idx in range(num_samples):
+                logger.info(f"=== Evaluating on {task.name}, #train {train_size}, run {run_idx}")
+                with prefix_log_msgs(
+                    f" Test - Task {task.name} - Size {train_size:3d} - Run {run_idx}"
+                ), tempfile.TemporaryDirectory() as temp_out_folder:
+                    local_seed = seed + run_idx
+
+                    try:
+                        task_sample = task_sampler.sample(task, seed=local_seed)
+                    except (
+                        DatasetTooSmallException,
+                        DatasetClassTooSmallException,
+                        FoldTooSmallException,
+                        ValueError,
+                    ) as e:
+                        logger.warning(
+                            f"Failed to draw sample with {train_size} train points for {task.name}. Skipping."
+                        )
+                        logger.debug("Sampling error: " + str(e))
+                        continue
+
+                    test_metrics = test_model_fn(task_sample, temp_out_folder, local_seed)
+
+                    test_results.append(
+                        FSMolTaskSampleEvalResults(
+                            task_name=task.name,
+                            seed=local_seed,
+                            num_train=train_size,
+                            num_test=len(task_sample.test_samples),
+                            fraction_pos_train=task_sample.train_pos_label_ratio,
+                            fraction_pos_test=task_sample.test_pos_label_ratio,
+                            **dataclasses.asdict(test_metrics),
+                        )
+                    )
+
+        task_to_results[task.name] = test_results
+
+        if out_dir is not None:
+            write_csv_summary(os.path.join(out_dir, f"{task.name}_eval_results.csv"), test_results)
+
+    return task_to_results

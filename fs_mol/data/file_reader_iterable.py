@@ -14,11 +14,18 @@ logger = logging.getLogger(__name__)
 
 
 ReaderOutputType = TypeVar("ReaderOutputType")
+QueueRichPathType = TypeVar("QueueRichPathType")
+QueueReaderOutputType = TypeVar("QueueReaderOutputType")
 
 
 def read_file_from_path_queue(
+<<<<<<< HEAD
     input_paths: Queue[RichPath],
     output_queue: Queue[Union[Type[Empty], ReaderOutputType]],
+=======
+    input_paths: QueueRichPathType,
+    output_queue: QueueReaderOutputType,
+>>>>>>> main
     reader_fn: Callable[[List[RichPath], int], Iterable[ReaderOutputType]],
     termination_signal: EventType,
     reader_chunk_size: int,
