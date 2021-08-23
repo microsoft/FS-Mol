@@ -13,12 +13,17 @@ train-test-splits are not performed within individual assays.
 
 """
 import os
+import sys
 import logging
 import pandas as pd
 from glob import glob
 from typing import List
 
 from dpu_utils.utils import run_and_debug, RichPath
+
+from pyprojroot import here as project_root
+
+sys.path.insert(0, str(project_root("fs_mol")))
 
 from preprocessing.featurisers.featurise_utils import (
     get_featurizing_argparser,
