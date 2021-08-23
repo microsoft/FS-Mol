@@ -7,7 +7,7 @@ This repository contains code and data for FS-Mol: A Few-Shot Learning Dataset o
 ## Datasets
 
 ### FSMolDataset
-The `FSMolDataset` provides access to the train/valid/test tasks of the few-shot dataset. An instance is created from the data directory by `FSMolDataset.from_directory(/path/to/dataset)` and access to the iterable over task files is given by `FSMolDataset.get_task_reading_iterable`. This allows specification of a callable to define how to read a list of task files, and permits multithreaded data loading. The default implementation returns an iterable over `FSMolTask` objects, each containing an entire task's set of single featurised molecules, `MoleculeDatapoint`. More details and examples of how to use `FSMolDataset` are available in `fs_mol/notebooks/dataset.ipynb`.
+The `FSMolDataset` provides access to the train/valid/test tasks of our few-shot dataset. An instance is created from the data directory by `FSMolDataset.from_directory("/path/to/dataset")` and access to the iterable over task files is given by `FSMolDataset.get_task_reading_iterable`. This allows specification of a callable to define how to read a list of task files, and permits multithreaded data loading. The default implementation returns an iterable over `FSMolTask` objects, each containing an entire task's set of single featurised molecules, `MoleculeDatapoint`. More details and examples of how to use `FSMolDataset` are available in `fs_mol/notebooks/dataset.ipynb`.
 
 ## Available Model Implementations
 
