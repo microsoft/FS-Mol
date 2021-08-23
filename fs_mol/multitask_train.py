@@ -1,5 +1,4 @@
 import argparse
-import dataclasses
 import itertools
 import logging
 import os
@@ -23,12 +22,9 @@ from fs_mol.data import (
     NUM_NODE_FEATURES,
     DataFold,
     FSMolBatcher,
-    FSMolTask,
     FSMolBatchIterable,
-    StratifiedTaskSampler,
-    DatasetClassTooSmallException,
-    DatasetTooSmallException,
-    FoldTooSmallException,
+    FSMolDataset,
+    FSMolTaskSample,
 )
 from fs_mol.data.multitask import (
     FSMolMultitaskBatch,
@@ -43,7 +39,7 @@ from fs_mol.models.gnn_multitask import (
     create_model,
 )
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
-from fs_mol.utils.logging import PROGRESS_LOG_LEVEL, prefix_log_msgs
+from fs_mol.utils.logging import PROGRESS_LOG_LEVEL
 from fs_mol.utils.metric_logger import MetricLogger
 from fs_mol.utils.metrics import (
     avg_metrics_list,
@@ -52,7 +48,7 @@ from fs_mol.utils.metrics import (
     BinaryMetricType,
 )
 from fs_mol.utils.multitask_utils import create_optimizer, save_model
-from fs_mol.utils.test_utils import FSMolTaskSampleEvalResults
+from fs_mol.utils.test_utils import eval_model
 
 
 SMALL_NUMBER = 1e-7
@@ -159,9 +155,7 @@ def validate_on_data_iterable(
     quiet: bool = False,
 ) -> float:
     valid_loss, valid_metrics = run_on_data_iterable(
-        model,
-        data_iterable=data_iterable,
-        quiet=quiet,
+        model, data_iterable=data_iterable, quiet=quiet
     )
     if not quiet:
         logger.info(f"  Validation loss: {valid_loss:.5f}")
@@ -176,11 +170,9 @@ def validate_on_data_iterable(
 def eval_model_by_finetuning_on_task(
     model_weights_file: str,
     model_cls: Type[AbstractTorchModel],
-    task: FSMolTask,
+    task_sample: FSMolTaskSample,
+    temp_out_folder: str,
     batcher: FSMolBatcher,
-    train_set_sample_sizes: List[int],
-    test_set_size: Optional[int],
-    num_samples: int,
     learning_rate: float,
     task_specific_learning_rate: float,
     metric_to_use: MetricType = "avg_precision",
@@ -189,117 +181,63 @@ def eval_model_by_finetuning_on_task(
     seed: int = 0,
     quiet: bool = False,
     device: Optional[torch.device] = None,
-) -> List[FSMolTaskSampleEvalResults]:
-    test_results: List[FSMolTaskSampleEvalResults] = []
-    for train_size in train_set_sample_sizes:
-        task_sampler = StratifiedTaskSampler(
-            train_size_or_ratio=train_size,
-            valid_size_or_ratio=0.2,
-            test_size_or_ratio=test_set_size,
-            allow_smaller_test=True,
-        )
-        for run_idx in range(num_samples):
-            logger.info(
-                f"=== Evaluating on {task.name}, #train {train_size}, run {run_idx}",
-            )
-            with prefix_log_msgs(
-                f" Inner - {task.name} - Size {train_size:3d} - Run {run_idx}"
-            ), tempfile.TemporaryDirectory() as temp_out_folder:
-                try:
-                    task_sample = task_sampler.sample(task, seed=seed + run_idx)
-                except (
-                    DatasetTooSmallException,
-                    DatasetClassTooSmallException,
-                    FoldTooSmallException,
-                    ValueError,
-                ) as e:
-                    logger.warning(
-                        f"Failed to draw sample with {train_size} train points for {task.name}. Skipping."
-                    )
-                    logger.debug("Sampling error: " + str(e))
-                    continue
+) -> BinaryEvalMetrics:
+    # Build the model afresh and load the shared weights.
+    model = model_cls.build_from_model_file(
+        model_weights_file, quiet=quiet, device=device, config_overrides={"num_tasks": 1}
+    )
+    model.load_model_weights(model_weights_file, load_task_specific_weights=False)
 
-                # Build the model afresh and load the shared weights.
-                model = model_cls.build_from_model_file(
-                    model_weights_file,
-                    quiet=quiet,
-                    device=device,
-                    config_overrides={
-                        "num_tasks": 1,
-                    },
-                )
-                model.load_model_weights(model_weights_file, load_task_specific_weights=False)
+    (optimizer, lr_scheduler) = create_optimizer(
+        model,
+        lr=learning_rate,
+        task_specific_lr=task_specific_learning_rate,
+        warmup_steps=2,
+        task_specific_warmup_steps=2,
+    )
 
-                (optimizer, lr_scheduler) = create_optimizer(
-                    model,
-                    lr=learning_rate,
-                    task_specific_lr=task_specific_learning_rate,
-                    warmup_steps=2,
-                    task_specific_warmup_steps=2,
-                )
+    best_valid_metric = train_loop(
+        model=model,
+        optimizer=optimizer,
+        lr_scheduler=lr_scheduler,
+        train_data=FSMolBatchIterable(task_sample.train_samples, batcher, shuffle=True, seed=seed),
+        valid_fn=partial(
+            validate_on_data_iterable,
+            data_iterable=FSMolBatchIterable(task_sample.valid_samples, batcher),
+            metric_to_use="loss",
+            quiet=quiet,
+        ),
+        output_folder=temp_out_folder,
+        metric_to_use=metric_to_use,
+        max_num_epochs=max_num_epochs,
+        patience=patience,
+        quiet=True,
+    )
 
-                best_valid_metric = train_loop(
-                    model=model,
-                    optimizer=optimizer,
-                    lr_scheduler=lr_scheduler,
-                    train_data=FSMolBatchIterable(
-                        task_sample.train_samples, batcher, shuffle=True, seed=seed + run_idx
-                    ),
-                    valid_fn=partial(
-                        validate_on_data_iterable,
-                        data_iterable=FSMolBatchIterable(task_sample.valid_samples, batcher),
-                        metric_to_use="loss",
-                        quiet=quiet,
-                    ),
-                    output_folder=temp_out_folder,
-                    metric_to_use=metric_to_use,
-                    max_num_epochs=max_num_epochs,
-                    patience=patience,
-                    quiet=True,
-                )
+    logger.log(PROGRESS_LOG_LEVEL, f" Final validation loss:       {float(best_valid_metric):.5f}")
+    # Load best model state and eval on test data:
+    best_trained_model_file = os.path.join(temp_out_folder, "best_model.pt")
+    model.load_model_weights(best_trained_model_file, load_task_specific_weights=True)
+    test_loss, _test_metrics = run_on_data_iterable(
+        model, data_iterable=FSMolBatchIterable(task_sample.test_samples, batcher), quiet=quiet
+    )
+    test_metrics = next(iter(_test_metrics.values()))
+    logger.log(PROGRESS_LOG_LEVEL, f" Test loss:                   {float(test_loss):.5f}")
+    logger.info(f" Test metrics: {test_metrics}")
+    logger.info(
+        f"Dataset sample has {task_sample.test_pos_label_ratio:.4f} positive label ratio in test data.",
+    )
+    logger.log(
+        PROGRESS_LOG_LEVEL,
+        f"Dataset sample test {metric_to_use}: {getattr(test_metrics, metric_to_use):.4f}",
+    )
 
-                logger.log(
-                    PROGRESS_LOG_LEVEL,
-                    f" Final validation loss:       {float(best_valid_metric):.5f}",
-                )
-                # Load best model state and eval on test data:
-                best_trained_model_file = os.path.join(temp_out_folder, "best_model.pt")
-                model.load_model_weights(best_trained_model_file, load_task_specific_weights=True)
-                test_loss, _test_metrics = run_on_data_iterable(
-                    model,
-                    data_iterable=FSMolBatchIterable(task_sample.test_samples, batcher),
-                    quiet=quiet,
-                )
-                test_metrics = next(iter(_test_metrics.values()))
-                logger.log(
-                    PROGRESS_LOG_LEVEL, f" Test loss:                   {float(test_loss):.5f}"
-                )
-                logger.info(f" Test metrics: {test_metrics}")
-                logger.info(
-                    f"Dataset sample has {task_sample.test_pos_label_ratio:.4f} positive label ratio in test data.",
-                )
-                logger.log(
-                    PROGRESS_LOG_LEVEL,
-                    f"Dataset sample test {metric_to_use}: {getattr(test_metrics, metric_to_use):.4f}",
-                )
-                test_results.append(
-                    FSMolTaskSampleEvalResults(
-                        task_name=task.name,
-                        seed=seed + run_idx,
-                        num_train=train_size,
-                        num_test=len(task_sample.test_samples),
-                        fraction_pos_train=task_sample.train_pos_label_ratio,
-                        fraction_pos_test=task_sample.test_pos_label_ratio,
-                        **dataclasses.asdict(test_metrics),
-                    )
-                )
-
-    return test_results
+    return test_metrics
 
 
 def validate_by_finetuning_on_tasks(
     model: AbstractTorchModel,
-    tasks: Iterable[FSMolTask],
+    dataset: FSMolDataset,
     learning_rate: float,
     task_specific_learning_rate: float,
     batch_size: int = 128,
@@ -317,16 +255,15 @@ def validate_by_finetuning_on_tasks(
         model_device = model.device
         model = model.to(torch.device("cpu"))
 
-        task_to_results: Dict[str, List[FSMolTaskSampleEvalResults]] = {}
-        for task in tasks:
-            task_metrics = eval_model_by_finetuning_on_task(
+        def test_model_fn(
+            task_sample: FSMolTaskSample, temp_out_folder: str, seed: int
+        ) -> BinaryEvalMetrics:
+            return eval_model_by_finetuning_on_task(
                 current_model_path,
                 model_cls=GNNMultitaskModel,
-                task=task,
+                task_sample=task_sample,
+                temp_out_folder=temp_out_folder,
                 batcher=get_multitask_inference_batcher(max_num_graphs=batch_size),
-                train_set_sample_sizes=[16, 128],
-                test_set_size=512,
-                num_samples=3,
                 learning_rate=learning_rate,
                 task_specific_learning_rate=task_specific_learning_rate,
                 metric_to_use=metric_to_use,
@@ -334,7 +271,17 @@ def validate_by_finetuning_on_tasks(
                 quiet=True,
                 device=model_device,
             )
-            task_to_results[task.name] = task_metrics
+
+        task_to_results = eval_model(
+            test_model_fn=test_model_fn,
+            dataset=dataset,
+            train_set_sample_sizes=[16, 128],
+            num_samples=3,
+            valid_size_or_ratio=0.2,
+            test_size_or_ratio=512,
+            fold=DataFold.VALIDATION,
+            seed=seed,
+        )
 
         mean_metrics = avg_metrics_list(list(itertools.chain(*task_to_results.values())))
         if aml_run is not None:
@@ -448,15 +395,7 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         "--readout_type",
         type=str,
         default="combined",
-        choices=[
-            "sum",
-            "min",
-            "max",
-            "mean",
-            "weighted_sum",
-            "weighted_mean",
-            "combined",
-        ],
+        choices=["sum", "min", "max", "mean", "weighted_sum", "weighted_mean", "combined"],
         help="Readout used to summarise atoms into a molecule",
     )
     parser.add_argument(
@@ -577,7 +516,7 @@ def main():
     # Validation is done by finetuning on a bunch of tasks:
     valid_fn = partial(
         validate_by_finetuning_on_tasks,
-        tasks=fsmol_dataset.get_task_reading_iterable(DataFold.VALIDATION),
+        dataset=fsmol_dataset,
         learning_rate=args.finetune_lr_scale * args.learning_rate,
         task_specific_learning_rate=args.finetune_lr_scale * task_specific_lr,
         batch_size=args.batch_size,

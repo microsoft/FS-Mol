@@ -343,7 +343,7 @@ def run_metatraining_from_args(args):
         metatrain_valid_fn=partial(
             eval_model_by_finetuning_on_tasks,
             model=valid_model,
-            tasks=fsmol_dataset.get_task_reading_iterable(DataFold.VALIDATION),
+            dataset=fsmol_dataset,
             max_num_nodes_in_batch=10000,
             metric_to_use=args.test_metric,
             train_set_sample_sizes=args.validation_train_set_sizes,

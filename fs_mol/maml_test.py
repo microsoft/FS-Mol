@@ -9,15 +9,12 @@ from pathlib import Path
 
 import tensorflow as tf
 from dpu_utils.utils import run_and_debug
-
 from tf2_gnn.cli_utils.model_utils import load_weights_verbosely
-
 from pyreporoot import project_root
 
 sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
 
-
-from fs_mol.data import DataFold
+from fs_mol.data.fsmol_task import FSMolTaskSample
 from fs_mol.maml_train import VALIDATION_MODEL_DEFAULT_HYPER_PARAMS
 from fs_mol.models.metalearning_graph_binary_classification import (
     MetalearningGraphBinaryClassificationTask,
@@ -25,7 +22,8 @@ from fs_mol.models.metalearning_graph_binary_classification import (
 from fs_mol.utils.logging import FileLikeLogger
 from fs_mol.utils.maml_data_utils import FSMolStubGraphDataset
 from fs_mol.utils.maml_train_utils import eval_model_by_finetuning_on_task
-from fs_mol.utils.test_utils import add_eval_cli_args, set_up_test_run, write_csv_summary
+from fs_mol.utils.metrics import BinaryEvalMetrics
+from fs_mol.utils.test_utils import add_eval_cli_args, eval_model, set_up_test_run
 
 
 logger = logging.getLogger(__name__)
@@ -75,21 +73,28 @@ def run_from_args(args) -> None:
     model = load_model_for_eval(args)
     base_model_weights = {var.name: var.value() for var in model.trainable_variables}
 
-    for task in dataset.get_task_reading_iterable(DataFold.TEST):
-        _, test_results = eval_model_by_finetuning_on_task(
-            model,
-            base_model_weights,
-            task,
-            train_set_sample_sizes=args.train_sizes,
-            test_set_size=None,
-            num_samples=args.num_runs,
+    def test_model_fn(
+        task_sample: FSMolTaskSample, temp_out_folder: str, seed: int
+    ) -> BinaryEvalMetrics:
+        return eval_model_by_finetuning_on_task(
+            model=model,
+            model_weights=base_model_weights,
+            task_sample=task_sample,
+            temp_out_folder=temp_out_folder,
             max_num_nodes_in_batch=10000,
             metric_to_use="avg_precision",
-            seed=args.seed,
             quiet=True,
         )
 
-        write_csv_summary(os.path.join(out_dir, f"{task.name}_eval_results.csv"), test_results)
+    eval_model(
+        test_model_fn=test_model_fn,
+        dataset=dataset,
+        train_set_sample_sizes=args.train_sizes,
+        out_dir=out_dir,
+        num_samples=args.num_runs,
+        valid_size_or_ratio=0.2,
+        seed=args.seed,
+    )
 
 
 def run():

@@ -1,10 +1,7 @@
-import dataclasses
 import logging
 import itertools
-from fs_mol.data.fsmol_task import MoleculeDatapoint
 import os
 import pickle
-import tempfile
 from functools import partial
 from typing import Dict, Any, Iterable, List, Optional, Tuple, Callable, Union
 from typing_extensions import Literal
@@ -14,17 +11,11 @@ import tensorflow as tf
 from tf2_gnn.cli_utils.model_utils import _get_name_to_variable_map, load_weights_verbosely
 from tf2_gnn.cli_utils.dataset_utils import get_model_file_path
 
-from fs_mol.data import (
-    FSMolTask,
-    DatasetClassTooSmallException,
-    DatasetTooSmallException,
-    FoldTooSmallException,
-    StratifiedTaskSampler,
-)
+from fs_mol.data import DataFold, FSMolDataset, FSMolTaskSample, MoleculeDatapoint
 from fs_mol.models.metalearning_graph_binary_classification import (
     MetalearningGraphBinaryClassificationTask,
 )
-from fs_mol.utils.logging import PROGRESS_LOG_LEVEL, prefix_log_msgs, restrict_console_log_level
+from fs_mol.utils.logging import PROGRESS_LOG_LEVEL, restrict_console_log_level
 from fs_mol.utils.metrics import (
     BinaryEvalMetrics,
     BinaryMetricType,
@@ -32,7 +23,7 @@ from fs_mol.utils.metrics import (
     compute_binary_task_metrics,
 )
 from fs_mol.utils.maml_data_utils import TFGraphBatchIterable
-from fs_mol.utils.test_utils import FSMolTaskSampleEvalResults
+from fs_mol.utils.test_utils import eval_model
 
 
 logger = logging.getLogger(__name__)
@@ -154,7 +145,7 @@ def finetune_and_eval_on_task(
     max_num_epochs: int = 50,
     patience: int = 10,
     quiet: bool = False,
-) -> Tuple[float, BinaryEvalMetrics]:
+) -> BinaryEvalMetrics:
     model_save_file = os.path.join(out_folder, f"best_model.pkl")
     # We now need to set the parameters to their current values in the training model:
     for var in model.trainable_variables:
@@ -175,8 +166,7 @@ def finetune_and_eval_on_task(
             valid_fn=partial(
                 validate_on_data_iterable,
                 data_iterable=TFGraphBatchIterable(
-                    samples=valid_samples,
-                    max_num_nodes=max_num_nodes_in_batch,
+                    samples=valid_samples, max_num_nodes=max_num_nodes_in_batch
                 ),
                 metric_to_use="loss",
                 quiet=True,
@@ -188,10 +178,7 @@ def finetune_and_eval_on_task(
             quiet=True,
         )
 
-    logger.log(
-        PROGRESS_LOG_LEVEL,
-        f" Best validation loss:        {float(best_valid_metric):.5f}",
-    )
+    logger.log(PROGRESS_LOG_LEVEL, f" Best validation loss:        {float(best_valid_metric):.5f}")
     # Load best model state and eval on test data:
     load_weights_verbosely(model_save_file, model)
 
@@ -204,91 +191,46 @@ def finetune_and_eval_on_task(
     logger.log(PROGRESS_LOG_LEVEL, f" Test loss:                   {float(test_loss):.5f}")
     logger.log(PROGRESS_LOG_LEVEL, f" Test metrics: {test_metrics}")
 
-    return test_loss, test_metrics
+    return test_metrics
 
 
 def eval_model_by_finetuning_on_task(
     model: MetalearningGraphBinaryClassificationTask,
     model_weights: Dict[str, tf.Tensor],
-    task: FSMolTask,
-    train_set_sample_sizes: List[int],
-    test_set_size: Optional[int],
-    num_samples: int,
+    task_sample: FSMolTaskSample,
+    temp_out_folder: str,
     max_num_nodes_in_batch: int,
     metric_to_use: MetricType = "avg_precision",
     max_num_epochs: int = 50,
     patience: int = 10,
-    seed: int = 0,
     quiet: bool = False,
-) -> Tuple[List[float], List[FSMolTaskSampleEvalResults]]:
-    test_losses: List[float] = []
-    test_results: List[FSMolTaskSampleEvalResults] = []
-    for train_size in train_set_sample_sizes:
-        task_sampler = StratifiedTaskSampler(
-            train_size_or_ratio=train_size,
-            valid_size_or_ratio=0.2,
-            test_size_or_ratio=test_set_size,
-            allow_smaller_test=True,
-        )
-        for run_idx in range(num_samples):
-            logger.info(f"=== Evaluating on {task.name}, #train {train_size}, run {run_idx}")
-            with tempfile.TemporaryDirectory() as temp_out_folder, prefix_log_msgs(
-                f" Inner - {task.name} - Size {train_size:3d} - Run {run_idx}"
-            ):
-                try:
-                    task_sample = task_sampler.sample(task, seed=seed + run_idx)
-                except (
-                    DatasetTooSmallException,
-                    DatasetClassTooSmallException,
-                    FoldTooSmallException,
-                    ValueError,
-                ) as e:
-                    logger.info(
-                        f" Failed to draw sample with {train_size} train points for {task.name}. Skipping."
-                    )
-                    logger.debug(" Sampling error: " + str(e))
-                    continue
+) -> BinaryEvalMetrics:
+    test_metrics = finetune_and_eval_on_task(
+        model,
+        model_weights,
+        train_samples=task_sample.train_samples,
+        valid_samples=task_sample.valid_samples,
+        test_samples=task_sample.test_samples,
+        out_folder=temp_out_folder,
+        max_num_nodes_in_batch=max_num_nodes_in_batch,
+        metric_to_use=metric_to_use,
+        max_num_epochs=max_num_epochs,
+        patience=patience,
+        quiet=quiet,
+    )
 
-                test_loss, test_metrics = finetune_and_eval_on_task(
-                    model,
-                    model_weights,
-                    train_samples=task_sample.train_samples,
-                    valid_samples=task_sample.valid_samples,
-                    test_samples=task_sample.test_samples,
-                    out_folder=temp_out_folder,
-                    max_num_nodes_in_batch=max_num_nodes_in_batch,
-                    metric_to_use=metric_to_use,
-                    max_num_epochs=max_num_epochs,
-                    patience=patience,
-                    quiet=quiet,
-                )
+    logger.info(
+        f" Dataset sample has {task_sample.test_pos_label_ratio:.4f} positive label ratio in test data."
+    )
+    logger.info(f" Dataset sample test {metric_to_use}: {getattr(test_metrics, metric_to_use):.4f}")
 
-                logger.info(
-                    f" Dataset sample has {task_sample.test_pos_label_ratio:.4f} positive label ratio in test data."
-                )
-                logger.info(
-                    f" Dataset sample test {metric_to_use}: {getattr(test_metrics, metric_to_use):.4f}"
-                )
-                test_losses.append(test_loss)
-                test_results.append(
-                    FSMolTaskSampleEvalResults(
-                        task_name=task.name,
-                        seed=seed + run_idx,
-                        num_train=train_size,
-                        num_test=len(task_sample.test_samples),
-                        fraction_pos_train=task_sample.train_pos_label_ratio,
-                        fraction_pos_test=task_sample.test_pos_label_ratio,
-                        **dataclasses.asdict(test_metrics),
-                    )
-                )
-
-    return test_losses, test_results
+    return test_metrics
 
 
 def eval_model_by_finetuning_on_tasks(
     model: MetalearningGraphBinaryClassificationTask,
     model_weights: Dict[str, tf.Tensor],
-    tasks: Iterable[FSMolTask],
+    dataset: FSMolDataset,
     max_num_nodes_in_batch: int,
     metric_to_use: MetricType = "avg_precision",
     seed: int = 0,
@@ -297,23 +239,29 @@ def eval_model_by_finetuning_on_tasks(
     num_samples: int = 5,
     aml_run=None,
 ) -> float:
-    task_to_losses: Dict[str, List[float]] = {}
-    task_to_results: Dict[str, List[BinaryEvalMetrics]] = {}
-    for task in tasks:
-        task_losses, task_metrics = eval_model_by_finetuning_on_task(
+    def test_model_fn(
+        task_sample: FSMolTaskSample, temp_out_folder: str, seed: int
+    ) -> BinaryEvalMetrics:
+        return eval_model_by_finetuning_on_task(
             model=model,
             model_weights=model_weights,
-            task=task,
-            train_set_sample_sizes=train_set_sample_sizes,
-            test_set_size=test_set_size,
-            num_samples=num_samples,
+            task_sample=task_sample,
+            temp_out_folder=temp_out_folder,
             max_num_nodes_in_batch=max_num_nodes_in_batch,
             metric_to_use=metric_to_use,
-            seed=seed,
             quiet=True,
         )
-        task_to_results[task.name] = task_metrics
-        task_to_losses[task.name] = task_losses
+
+    task_to_results = eval_model(
+        test_model_fn=test_model_fn,
+        dataset=dataset,
+        train_set_sample_sizes=train_set_sample_sizes,
+        num_samples=num_samples,
+        valid_size_or_ratio=0.2,
+        test_size_or_ratio=test_set_size,
+        fold=DataFold.VALIDATION,
+        seed=seed,
+    )
 
     mean_metrics = avg_metrics_list(list(itertools.chain(*task_to_results.values())))
     if aml_run is not None:
