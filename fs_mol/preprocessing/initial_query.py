@@ -118,7 +118,7 @@ def run_initial_query(
                 cursor.close()
 
     # write out all the chembl_ids of the assays meeting the criteria
-    logger.info(f"saving out list of assays to f{assay_list_file}")
+    logger.info(f"saving out list of assays to {assay_list_file}")
     assay_list_dict = {"assays": assay_list}
     with open(assay_list_file, "w") as jf:
         json.dump(assay_list_dict, jf)
