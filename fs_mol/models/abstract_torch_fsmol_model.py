@@ -232,18 +232,18 @@ def run_on_data_iterable(
             lr_scheduler.step()
 
         # === Finally, collect per-task results to be used for further eval:
-        sample_to_task_it: Dict[int, int] = {}
+        sample_to_task_id: Dict[int, int] = {}
         if hasattr(batch, "sample_to_task_id"):
-            sample_to_task_it = batch.sample_to_task_id
+            sample_to_task_id = batch.sample_to_task_id
         else:
             # If we don't have a sample task information, just use 0 as default task ID:
-            sample_to_task_it = defaultdict(lambda: 0)
+            sample_to_task_id = defaultdict(lambda: 0)
 
         # Apply sigmoid to have predictions in appropriate range for computing (scikit) scores.
         num_samples = labels.shape[0]
         predictions = torch.sigmoid(predictions).detach().cpu()
         for i in range(num_samples):
-            task_id = sample_to_task_it[i]
+            task_id = sample_to_task_id[i]
             per_task_preds[task_id].append(predictions[i].item())
             per_task_labels[task_id].append(labels[i])
 
