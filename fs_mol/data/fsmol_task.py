@@ -40,7 +40,7 @@ class MoleculeDatapoint:
         task_name: String describing the task this datapoint is taken from.
         smiles: SMILES string describing the molecule this datapoint corresponds to.
         graph: GraphData object containing information about the molecule in graph representation
-            form, according to featurization chosen in preprocessing. 
+            form, according to featurization chosen in preprocessing.
         numeric_label: numerical label (e.g., activity), usually measured in the lab
         bool_label: bool classification label, usually derived from the numeric label using a
             threshold.
@@ -89,6 +89,7 @@ class FSMolTask:
         name: String describing the task's name eg. "CHEMBL1000114".
         samples: List of MoleculeDatapoint samples associated with this task.
     """
+
     name: str
     samples: List[MoleculeDatapoint]
 
@@ -154,6 +155,7 @@ class FSMolTaskSample:
             This may be empty, dependent on the nature of the Task Sampler.
         test_samples: List of MoleculeDatapoint samples drawn as the query set.
     """
+
     name: str
     train_samples: List[MoleculeDatapoint]
     valid_samples: List[MoleculeDatapoint]
