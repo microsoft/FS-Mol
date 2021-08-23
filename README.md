@@ -12,9 +12,16 @@ We provide implementations for the three key few-shot learning models, as well a
 
 ## Available Model Checkpoints
 
-## Specifying New Model Implementations
+## Specifying, Training and Evaluating New Model Implementations
 
 Flexible definition of few-shot models and single task models is defined as demonstrated in the range of train and test scripts in `fs_mol`. 
+
+We give a detailed example of how to use the abstract class `AbstractTorchFSMolModel` in `notebooks/torch_model.ipynb`. `models/abstract_torch_fsmol_model.py` contains basic implementations of the methods used to train, validate and evaluate the model according to the benchmarking procedure. 
+
+We note that the evaluation method, in particular the use of `eval_model` in conjunction with the FSMolDataset, is designed to be general and applicable to a wide range of models. Provided an evaluation can be called on the model on a single `TaskSample`, resulting in a `BinaryEvalMetric`, the model can be evaluated with exactly the same procedure as the one described for obtaining our baselines. 
+
+In this manner, we aim to allow consistent evaluation on this dataset directly comparable to our baselines. 
+
 
 ## Contributing
 
