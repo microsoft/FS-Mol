@@ -12,7 +12,7 @@ from typing import Optional, Tuple, Callable
 from rdkit import Chem
 from rdkit.Chem.Descriptors import MolWt
 
-from preprocessing.utils.standardizer import Standardizer
+from fs_mol.preprocessing.utils.standardizer import Standardizer
 
 standard_unit_set = {"nM", "%", "uM"}
 

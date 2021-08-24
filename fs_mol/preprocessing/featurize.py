@@ -25,12 +25,12 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root("fs_mol")))
 
-from preprocessing.featurisers.featurise_utils import (
+from fs_mol.preprocessing.featurisers.featurise_utils import (
     get_featurizing_argparser,
     load_csv_assay_data,
     featurise_smiles_datapoints,
 )
-from preprocessing.utils.save_utils import (
+from fs_mol.preprocessing.utils.save_utils import (
     save_assay_data,
     save_metadata,
 )

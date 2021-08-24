@@ -12,7 +12,7 @@ from typing import Tuple, Dict, Any, List
 import mysql.connector
 from mysql.connector import Error
 
-from preprocessing.utils.db_utils import read_db_config
+from fs_mol.preprocessing.utils.db_utils import read_db_config
 
 logger = logging.getLogger(__name__)
 
