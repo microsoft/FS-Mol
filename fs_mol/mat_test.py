@@ -1,166 +1,26 @@
-from __future__ import annotations
-
 import argparse
 import logging
+import os
 import sys
 import warnings
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
 import torch
-from dpu_utils.utils import RichPath
 from rdkit import RDLogger
 from pyprojroot import here as project_root
 
-sys.path.insert(0, "./MAT/src")
 sys.path.insert(0, str(project_root()))
+sys.path.insert(0, os.path.join(str(project_root()), "third_party", "MAT", "src"))
 
-from fs_mol.data import (
-    FSMolBatcher,
-    FSMolTask,
-    FSMolTaskSample,
-    MoleculeDatapoint,
-    default_reader_fn,
-)
-from fs_mol.models.interface import AbstractTorchModel
+from fs_mol.data import FSMolTaskSample
+from fs_mol.data.mat import get_mat_batcher, mat_task_reader_fn
+from fs_mol.models.abstract_torch_fsmol_model import resolve_starting_model_file
+from fs_mol.models.mat import MATModel
 from fs_mol.multitask_train import eval_model_by_finetuning_on_task
 from fs_mol.utils.metrics import BinaryEvalMetrics
-from fs_mol.utils.multitask_utils import resolve_starting_model_file
 from fs_mol.utils.test_utils import add_eval_cli_args, eval_model, set_up_test_run
-
-from featurization.data_utils import construct_dataset, load_data_from_smiles, mol_collate_func
-from transformer import GraphTransformer, make_model
 
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class FSMolMATBatch:
-    node_features: torch.Tensor
-    adjacency_matrix: torch.Tensor
-    distance_matrix: torch.Tensor
-
-
-class MATModel(GraphTransformer, AbstractTorchModel[FSMolMATBatch]):
-    def forward(self, batch: FSMolMATBatch) -> Any:
-        mask = torch.sum(torch.abs(batch.node_features), dim=-1) != 0
-
-        return super().forward(
-            batch.node_features, mask, batch.adjacency_matrix, batch.distance_matrix, None
-        )
-
-    def get_model_state(self) -> Dict[str, Any]:
-        return {"model_state_dict": self.state_dict()}
-
-    def is_param_task_specific(self, param_name: str) -> bool:
-        return param_name.startswith("generator")
-
-    def load_model_weights(
-        self,
-        path: str,
-        load_task_specific_weights: bool,
-        quiet: bool = False,
-        device: Optional[torch.device] = None,
-    ) -> None:
-        pretrained_state_dict = torch.load(path, map_location=device)
-
-        # Checkpoints saved by us are richer than the original pre-trained checkpoint, as they also
-        # contain optimizer state. For now we only want the weights, so throw out the rest.
-        if "model_state_dict" in pretrained_state_dict:
-            pretrained_state_dict = pretrained_state_dict["model_state_dict"]
-
-        for name, param in pretrained_state_dict.items():
-            if not load_task_specific_weights and self.is_param_task_specific(name):
-                continue
-            if isinstance(param, torch.nn.Parameter):
-                param = param.data
-            self.state_dict()[name].copy_(param)
-
-    @classmethod
-    def build_from_model_file(
-        cls,
-        model_file: str,
-        config_overrides: Dict[str, Any] = {},
-        quiet: bool = False,
-        device: Optional[torch.device] = None,
-    ) -> MATModel:
-        # Parameters used for pretraining the original MAT model.
-        model_params = {
-            "d_atom": 28,
-            "d_model": 1024,
-            "N": 8,
-            "h": 16,
-            "N_dense": 1,
-            "lambda_attention": 0.33,
-            "lambda_distance": 0.33,
-            "leaky_relu_slope": 0.1,
-            "dense_output_nonlinearity": "relu",
-            "distance_matrix_kernel": "exp",
-            "dropout": 0.0,
-            "aggregation_type": "mean",
-        }
-
-        model = make_model(**model_params)
-        model.to(device)
-
-        # Cast to a subclass, which is valid because `MATModel` only adds a bunch of methods.
-        model.__class__ = MATModel
-
-        return model
-
-
-@dataclass(frozen=True)
-class MATMoleculeDatapoint(MoleculeDatapoint):
-    mat_features: np.ndarray
-
-
-def mat_process_samples(samples: List[MoleculeDatapoint]) -> List[MATMoleculeDatapoint]:
-    # Set `one_hot_formal_charge` for compatibilitiy with pretrained weights (see README.md in MAT).
-    all_features, _ = load_data_from_smiles(
-        x_smiles=[sample.smiles for sample in samples],
-        labels=[sample.bool_label for sample in samples],
-        one_hot_formal_charge=True,
-    )
-
-    # MAT can internally decide that there is something wrong with a sample and reject it. Our
-    # dataset is clean, so this shouldn't happen (or at least shouldn't happen silently!).
-    if len(all_features) < len(samples):
-        raise ValueError("MAT rejected some samples; can't continue, as that may skew results.")
-
-    # Note that `sample.__dict__` is almost like `dataclasses.asdict(sample)`, but shallow, i.e. it
-    # doesn't dict-ify the inner dataclass describing molecular graph.
-    return [
-        MATMoleculeDatapoint(mat_features=features, **sample.__dict__)
-        for sample, features in zip(samples, all_features)
-    ]
-
-
-def mat_batcher_init_fn(batch_data: Dict[str, Any]):
-    batch_data["mat_features"] = []
-
-
-def mat_batcher_add_sample_fn(
-    batch_data: Dict[str, Any], sample_id: int, sample: MATMoleculeDatapoint
-):
-    batch_data["mat_features"].append(sample.mat_features)
-
-
-def mat_batcher_finalizer_fn(batch_data: Dict[str, Any]) -> Tuple[FSMolMATBatch, np.ndarray]:
-    adjacency_matrix, node_features, distance_matrix, labels = mol_collate_func(
-        construct_dataset(
-            batch_data["mat_features"], [[label] for label in batch_data["bool_labels"]]
-        )
-    )
-
-    batch = FSMolMATBatch(
-        node_features=node_features,
-        adjacency_matrix=adjacency_matrix,
-        distance_matrix=distance_matrix,
-    )
-
-    return batch, labels.squeeze(dim=-1).cpu().detach().numpy()
 
 
 def turn_off_warnings():
@@ -224,26 +84,15 @@ def main():
         device=device,
     )
 
-    def task_reader_fn(paths: List[RichPath], idx: int) -> List[FSMolTask]:
-        [task] = default_reader_fn(paths, idx)
-        return [FSMolTask(name=task.name, samples=mat_process_samples(task.samples))]
-
     def test_model_fn(
         task_sample: FSMolTaskSample, temp_out_folder: str, seed: int
     ) -> BinaryEvalMetrics:
-        batcher = FSMolBatcher(
-            max_num_graphs=args.batch_size,
-            init_callback=mat_batcher_init_fn,
-            per_datapoint_callback=mat_batcher_add_sample_fn,
-            finalizer_callback=mat_batcher_finalizer_fn,
-        )
-
         return eval_model_by_finetuning_on_task(
             model_weights_file,
             model_cls=MATModel,
             task_sample=task_sample,
             temp_out_folder=temp_out_folder,
-            batcher=batcher,
+            batcher=get_mat_batcher(args.batch_size),
             learning_rate=args.learning_rate,
             task_specific_learning_rate=args.task_specific_lr,
             metric_to_use="avg_precision",
@@ -259,7 +108,7 @@ def main():
         out_dir=args.save_dir,
         num_samples=args.num_runs,
         valid_size_or_ratio=0.2,
-        task_reader_fn=task_reader_fn,
+        task_reader_fn=mat_task_reader_fn,
         seed=args.seed,
     )
 

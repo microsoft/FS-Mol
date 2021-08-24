@@ -33,7 +33,7 @@ DEFAULT_GRID_SEARCH: Dict[str, Dict[str, List[Any]]] = {
         "max_features": ["auto", "sqrt", "log2"],
         "min_samples_leaf": [1, 2, 5],
     },
-    "kNN": {"n_neighbors": [8, 16, 32, 64, 128], "metric": ["minkowski", "mahalanobis"]},
+    "kNN": {"n_neighbors": [4, 8, 16, 32, 64, 128], "metric": ["minkowski"]},
 }
 
 NAME_TO_MODEL_CLS: Dict[str, Any] = {
@@ -64,6 +64,13 @@ def test(
     if use_grid_search:
         if grid_search_parameters is None:
             grid_search_parameters = DEFAULT_GRID_SEARCH[model_name]
+            # in the case of kNNs the grid search has to be modified -- one cannot have
+            # more nearest neighbours than datapoints.
+            if model_name == "kNN":
+                permitted_n_neighbors = [
+                    x for x in grid_search_parameters["n_neighbors"] if x < int(len(train_data) / 2)
+                ]
+                grid_search_parameters.update({"n_neighbors": permitted_n_neighbors})
             grid_search = GridSearchCV(NAME_TO_MODEL_CLS[model_name](), grid_search_parameters)
         grid_search.fit(X_train, y_train)
         model = grid_search.best_estimator_
