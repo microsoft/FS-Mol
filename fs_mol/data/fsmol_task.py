@@ -44,7 +44,7 @@ class MoleculeDatapoint:
         numeric_label: numerical label (e.g., activity), usually measured in the lab
         bool_label: bool classification label, usually derived from the numeric label using a
             threshold.
-        fingerprint: optional ECFP for the molecule.
+        fingerprint: optional ECFP (Extended-Connectivity Fingerprint) for the molecule.
         descriptors: optional phys-chem descriptors for the molecule.
     """
 

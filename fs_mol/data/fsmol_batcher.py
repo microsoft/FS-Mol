@@ -65,7 +65,7 @@ def fsmol_batch_finalizer(batch_data: Dict[str, Any]) -> FSMolBatch:
 
     Args:
         batch_data: Dictionary containing batch data, initialised and populated
-            from MoleculeDatapoints by the FSMolBatcher.batch() method.
+            from "MoleculeDatapoints" by the "FSMolBatcher.batch()" method.
     """
     adjacency_lists = []
     for adj_lists in batch_data["adjacency_lists"]:
