@@ -109,7 +109,7 @@ def standardize(
         # get log standard values -- need to convert uM first
         df.loc[(df["standard_units"] == "uM"), "standard_value"] *= 1000
         df.loc[(df["standard_units"] == "uM"), "standard_units"] = "nM"
-        
+
         if df["standard_units"].iloc[0] != "%":
             df["log_standard_value"] = df.apply(log_standard_values, axis=1)
         else:
@@ -174,6 +174,7 @@ DEFAULT_CLEANING = {
     "num_workers": cpu_count(),
 }
 
+
 @dataclass(frozen=True)
 class OutputSummary:
     chembl_id: str
@@ -191,6 +192,7 @@ class OutputSummary:
     max_num_atoms: int
     confidence_score: int
     standard_units: str
+
 
 def get_argparser():
 
@@ -223,12 +225,12 @@ def get_argparser():
     )
 
     parser.add_argument(
-        "--assay",
-        dest="assay",
+        "--assays",
+        dest="assays",
         nargs="+",
         type=str,
         default=None,
-        help="Select a single assay to process",
+        help="Select assays to process by CHEMBL[ID] (e.g. CHEMBL999)",
     )
 
     parser.add_argument(
@@ -262,9 +264,7 @@ def get_argparser():
     return parser
 
 
-def clean_assay(
-    df: pd.DataFrame, assay: str
-) -> Tuple[pd.DataFrame, OutputSummary]:
+def clean_assay(df: pd.DataFrame, assay: str) -> Tuple[pd.DataFrame, OutputSummary]:
 
     # remove index if it was saved with this file (back compatible)
     if "Unnamed: 0" in df.columns:
@@ -284,9 +284,7 @@ def clean_assay(
         failed = True
 
     if df is None or len(df) == 0:
-        logger.warning(
-            f"Assay {assay} was empty post cleaning."
-        )
+        logger.warning(f"Assay {assay} was empty post cleaning.")
         failed = True
 
     assay_dict = {}
@@ -312,11 +310,7 @@ def clean_assay(
     else:
         target_id = df.iloc[0]["target_id"] if "target_id" in df.columns else None
 
-        organism = (
-            None
-            if df.iloc[0]["assay_organism"] == "nan"
-            else df.iloc[0]["assay_organism"]
-        )
+        organism = None if df.iloc[0]["assay_organism"] == "nan" else df.iloc[0]["assay_organism"]
         assay_dict = {
             "chembl_id": assay,
             "target_id": target_id,
@@ -334,7 +328,6 @@ def clean_assay(
             "confidence_score": df.iloc[0]["confidence_score"],
             "standard_units": df.iloc[0]["standard_units"],
         }
-
 
     return df, OutputSummary(**assay_dict)
 
@@ -373,7 +366,7 @@ def process_all_assays(
         except Exception as e:
             logger.warning(f"failed to clean assay: {e}")
             continue
-    
+
     with open(summary_file, "a+", newline="") as csv_file:
         fieldnames = [
             "chembl_id",
@@ -396,7 +389,8 @@ def process_all_assays(
         csv_writer.writeheader()
 
         for summary in summaries:
-            csv_writer.writerow({
+            csv_writer.writerow(
+                {
                     "chembl_id": summary.chembl_id,
                     "target_id": summary.target_id,
                     "assay_type": summary.assay_type,
@@ -412,7 +406,8 @@ def process_all_assays(
                     "max_num_atoms": summary.max_num_atoms,
                     "confidence_score": summary.confidence_score,
                     "standard_units": summary.standard_units,
-                })
+                }
+            )
 
 
 def get_files_to_process(input_dir: str, output_dir: str) -> List[str]:
@@ -452,8 +447,8 @@ def clean_directory(args):
 
     files_to_process = get_files_to_process(input_dir, output_dir)
 
-    if args.assay is not None:
-        filenames = [input_dir+x+".csv" for x in args.assay]
+    if args.assays is not None:
+        filenames = [os.path.join(input_dir, f"{x}.csv") for x in args.assays]
         files_to_process = set(files_to_process).intersection(set(filenames))
 
     print(f"Processing {len(files_to_process)}.")
