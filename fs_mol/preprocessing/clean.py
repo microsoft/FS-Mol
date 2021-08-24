@@ -352,7 +352,13 @@ def process_all_assays(
 
     # confidence score lookup (if required for this particular pre-queried data)
     if use_confidence_lookup:
-        with open(os.path.join(basepath, "confidence_lookup.json"), "r") as jsonfile:
+        with open(
+            os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                "utils/helper_files/confidence_lookup.json",
+            ),
+            "r",
+        ) as jsonfile:
             confidence_lookup = json.load(jsonfile)
 
     summaries = []
