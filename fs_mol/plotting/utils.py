@@ -474,7 +474,9 @@ def get_run_csvs_from_mountpath(mount_path: str, run: Run) -> List[str]:
 
 
 def load_model_results(
-    file: str, model_label: str, TRAIN_SIZES_TO_COMPARE: List[int] = [16, 32, 64, 128, 256]
+    file: str,
+    model_label: str,
+    train_sizes: List[int] = TRAIN_SIZES_TO_COMPARE,
 ) -> pd.DataFrame:
     df = pd.read_csv(file)
 
@@ -482,7 +484,7 @@ def load_model_results(
     columns_to_keep = ["TASK_ID", "fraction_positive_train", "fraction_positive_test"]
     if "EC_super_class" in df.columns:
         columns_to_keep.append("EC_super_class")
-    columns_to_keep.extend(f"{train_size}_train" for train_size in TRAIN_SIZES_TO_COMPARE)
+    columns_to_keep.extend(f"{train_size}_train" for train_size in train_sizes)
     todrop = list(set(df.columns) - set(columns_to_keep))
     df.drop(columns=todrop, inplace=True)
 
@@ -492,7 +494,7 @@ def load_model_results(
     df.rename(
         columns={
             f"{train_size}_train": f"{train_size}_train ({model_label})"
-            for train_size in TRAIN_SIZES_TO_COMPARE
+            for train_size in train_sizes
         },
         inplace=True,
     )
@@ -548,14 +550,14 @@ def merge_loaded_dfs(
 
 
 def load_data(
-    model_summaries: Dict[str, str], TRAIN_SIZES_TO_COMPARE: List[int] = [16, 32, 64, 128, 256]
+    model_summaries: Dict[str, str], train_sizes: List[int] = TRAIN_SIZES_TO_COMPARE
 ) -> pd.DataFrame:
 
     # load all the data in to a list
     df_list = []
     for model_name, model_summary_path in model_summaries.items():
         print(f"Loading data for {model_name} from {model_summary_path}.")
-        df_list.append(load_model_results(model_summary_path, model_name, TRAIN_SIZES_TO_COMPARE))
+        df_list.append(load_model_results(model_summary_path, model_name, train_sizes))
 
     merged_df = merge_loaded_dfs(df_list)
 
