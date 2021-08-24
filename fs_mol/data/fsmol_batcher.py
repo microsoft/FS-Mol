@@ -29,7 +29,7 @@ class FSMolBatch:
     Args:
         num_graphs: total number of graphs in the batch.
         num_nodes: total number of nodes in the batch, V. Should be limited to a maximum.
-        num_edges: total number of edges in batch; one batch contains multitple disconnected
+        num_edges: total number of edges in batch; one batch contains multiple disconnected
             graphs where edges and nodes are renumbered accordingly.
         node_features: each node has a vector representation dependent on featurisation,
             e.g. atom type, charge, valency. [V, atom_features] float, where V is number of nodes
