@@ -155,16 +155,11 @@ def run(args):
         output_dir = args.save_dir
     os.makedirs(output_dir, exist_ok=True)
 
-    assay_list = None
-    if args.run_initial_query:
-        assay_list = run_initial_query(db_config, args.save_dir, close_cursor=True)
-
-    if assay_list is None:
-        if args.assay_list_file is None:
-            assay_config = read_db_config(section="assays")
-            assay_list = read_assay_list(assay_config["assay_list_file"])
-        else:
-            assay_list = read_assay_list(args.assay_list_file)
+    if args.assay_list_file is None:
+        assay_config = read_db_config(section="assays")
+        assay_list = read_assay_list(assay_config["assay_list_file"])
+    else:
+        assay_list = read_assay_list(args.assay_list_file)
 
     conn = None
     cursor = None
@@ -238,13 +233,10 @@ if __name__ == "__main__":
         "--assay-list-file",
         type=str,
         default=None,
-        help='CSV or json file containing list of assays to query the database for under "chembl_id".',
-    )
-
-    parser.add_argument(
-        "--run-initial-query",
-        action="store_true",
-        help="Run an initial query to get assay ids, rather than passing an assay list.",
+        help=(
+            'CSV or json file containing list of assays to query the database for under "chembl_id".',
+            " Optional: config.ini can be used to take default assays.jsonl",
+        ),
     )
 
     parser.add_argument(
