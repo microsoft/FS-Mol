@@ -218,8 +218,8 @@ def get_argparser():
     )
 
     parser.add_argument(
-        "--output-name",
-        dest="output_name",
+        "--output-suffix",
+        dest="output_suffix",
         type=str,
         default="",
         help="Suffix to directory to save in $BASE_PATH/cleaned$output_name.",
@@ -260,6 +260,12 @@ def get_argparser():
         type=int,
         default=None,
         help="Some tasks are parallelised: default workers is number cores available.",
+    )
+
+    parser.add_argument(
+        "--confidence-lookup",
+        action="store_true",
+        help="If used, will look up each assay's confidence score from the utils/helper_files/confidence_lookup.json.",
     )
 
     return parser
@@ -337,15 +343,17 @@ def process_all_assays(
     files_to_process: List[str],
     output_dir: str,
     basepath: str,
+    use_confidence_lookup: bool = False,
 ) -> None:
 
     summary_file = os.path.join(output_dir, "summary.csv")
 
     logger.info(f"{len(files_to_process)} files remaining to process.")
 
-    # confidence score lookup (hack as this data was lost in later query for protein info)
-    with open(os.path.join(basepath, "confidence_lookup.json"), "r") as jsonfile:
-        confidence_lookup = json.load(jsonfile)
+    # confidence score lookup (if required for this particular pre-queried data)
+    if use_confidence_lookup:
+        with open(os.path.join(basepath, "confidence_lookup.json"), "r") as jsonfile:
+            confidence_lookup = json.load(jsonfile)
 
     summaries = []
     for i, assay_file in enumerate(files_to_process):
@@ -355,7 +363,8 @@ def process_all_assays(
             df = pd.read_csv(assay_file)
             if len(df) == 0:
                 logger.warning(f"Loaded empty assay: {assay}")
-            df["confidence_score"] = confidence_lookup[assay]
+            if "confidence_score" not in df.columns:
+                df["confidence_score"] = confidence_lookup[assay]
             df, summary = clean_assay(df, assay)
             logger.info(f"Assay {assay} saving to output directory.")
             if df is not None and len(df) > 0:
@@ -441,7 +450,7 @@ def clean_directory(args):
     DEFAULT_CLEANING.update({"max_mol_weight": args.max_mol_weight})
 
     input_dir = os.path.join(basepath, args.input_dir)
-    output_dir = os.path.join(basepath, f"cleaned{args.output_name}/")
+    output_dir = os.path.join(basepath, f"cleaned{args.output_suffix}/")
     os.makedirs(output_dir, exist_ok=True)
 
     # do not repeat cleaning on already cleaned files.
@@ -453,7 +462,9 @@ def clean_directory(args):
         files_to_process = set(files_to_process).intersection(set(filenames))
 
     print(f"Processing {len(files_to_process)}.")
-    process_all_assays(files_to_process, output_dir, basepath)
+    process_all_assays(
+        files_to_process, output_dir, basepath, use_confidence_lookup=args.confidence_lookup
+    )
 
 
 def run():
