@@ -22,11 +22,12 @@ from fs_mol.data.fsmol_task import MoleculeDatapoint
 @dataclass(frozen=True)
 class FSMolBatch:
     """General data structure for holding information about graph-featurized molecules in a
-    batch.
+    batch. Note that batches of unequally sized graphs are formed from multiple graphs by
+    combining into one large disconnected graph, where each new potential addition is tested
+    to check that it will not exceed the allowed number of nodes or edges per batch.
 
     Args:
-        num_graphs: total number of graphs in the batch -- graphs are batched in to one
-            large disconnected graph.
+        num_graphs: total number of graphs in the batch.
         num_nodes: total number of nodes in the batch, V. Should be limited to a maximum.
         num_edges: total number of edges in batch; one batch contains multitple disconnected
             graphs where edges and nodes are renumbered accordingly.
@@ -36,7 +37,7 @@ class FSMolBatch:
             list, len num_edge_types, elements [num edges, 2] int tensors
         edge_features: edges may also have vector representation carrying information specific
             to the edge. list, len num_edge_types, elements [num edges, ED] float tensors
-        node_to_graph: Set of indices, I, where |{I}| == V. Mapping from nodes to the graphs
+        node_to_graph: Vector of indices of length |V|. Mapping from nodes to the graphs
             to which they belong.
     """
 

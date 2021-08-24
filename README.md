@@ -7,20 +7,17 @@ This repository contains code and data for FS-Mol: A Few-Shot Learning Dataset o
 ## Datasets
 
 ### FSMolDataset
-The `FSMolDataset` provides access to the train/valid/test tasks of the few-shot dataset. An instance is created from the data directory by `FSMolDataset.from_directory(/path/to/dataset)` and access to the iterable over task files is given by `FSMolDataset.get_task_reading_iterable`. This allows specification of a callable to define how to read a list of task files, and permits multithreaded data loading. The default implementation returns an iterable over `FSMolTask` objects, each containing an entire task's set of single featurised molecules, `MoleculeDatapoint`. More details and examples of how to use `FSMolDataset` are available in `fs_mol/notebooks/dataset.ipynb`.
+The `FSMolDataset` provides access to the train/valid/test tasks of the few-shot dataset. An instance is created from the data directory by `FSMolDataset.from_directory(/path/to/dataset)` and access to the iterable over task files is given by `FSMolDataset.get_task_reading_iterable()`. This allows specification of a callable to define how to read a list of task files, and permits multithreaded data loading. The default implementation returns an iterable over `FSMolTask` objects,which each an entire task's set of molecules and labels. These are held by the `MoleculeDatapoint` objects. More details and examples of how to use `FSMolDataset` are available in `fs_mol/notebooks/dataset.ipynb`.
 
 ## Available Model Implementations
 
-We provide implementations for the three key few-shot learning models, as well as evaluation on the Single-Task baselines and MAT. 
+We provide implementations for three key few-shot learning methods: Multitask learning, Model-Agnostic Meta-Learning, and Prototypical Networks, as well as evaluation on the Single-Task baselines and the Molecule Attention Transformer (MAT) [paper](https://arxiv.org/abs/2002.08264v1), [code](https://github.com/lucidrains/molecule-attention-transformer). 
 
 ## Available Model Checkpoints
 
 ## Specifying New Model Implementations
 
 Flexible definition of few-shot models and single task models is defined as demonstrated in the range of train and test scripts in `fs_mol`. 
-
-Both the multitask and protonet models serve as examples of a PyTorch interface; an AbstractTorchModel from `models/interface.py` requires a `load_model_weights` method and a `build_from_model_file` method. 
-
 
 
 ## Contributing
