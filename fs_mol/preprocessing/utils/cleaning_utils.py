@@ -136,13 +136,6 @@ def autothreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:
     3) Apply the threshold to the data series.
 
     For activity measurements, log standard value is used.
-
-    CHANGED VERSION: 
-
-    range of allowed thresholds is 5-7 for everything (too much removed with 4-6)
-    If the median is the same as the most common value (i.e. a pile of measurements with the 
-    same value because it is a qualified value) the threshold is placed just above to exclude
-    these as inactive.
     """
 
     df = pd.DataFrame(x)
@@ -170,16 +163,6 @@ def autothreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:
         threshold = median
         buffer = df["log_standard_value"].std() / 10
 
-        # NEW VERSION
-        # if df["log_standard_value"].value_counts().idxmax() == median:
-        #     threshold = median + 0.001
-        # else:
-        #     if median < threshold_limits[0]: 
-        #         threshold = threshold_limits[0]
-        #     elif median > threshold_limits[1]:
-        #         threshold = threshold_limits[1]
-
-        # OLD VERSION
         # use as a threshold provided it is in a sensible
         # range. This was chosen as pKI 4-6 in general, 5-7 for enzymes
         if "protein_class_desc" in df.columns:
