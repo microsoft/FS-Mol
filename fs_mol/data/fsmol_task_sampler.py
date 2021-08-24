@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 
 class SamplingException(Exception):
     def __init__(
-        self, task_name: str, num_samples: int, num_train: Optional[int], num_valid: Optional[int], num_test: Optional[int]
+        self,
+        task_name: str,
+        num_samples: int,
+        num_train: Optional[int],
+        num_valid: Optional[int],
+        num_test: Optional[int],
     ):
         super().__init__()
         self._task_name = task_name
