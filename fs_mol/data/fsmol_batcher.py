@@ -37,7 +37,7 @@ class FSMolBatch:
             list, len num_edge_types, elements [num edges, 2] int tensors
         edge_features: edges may also have vector representation carrying information specific
             to the edge. list, len num_edge_types, elements [num edges, ED] float tensors
-        node_to_graph: Vector of indices of length |V|. Mapping from nodes to the graphs
+        node_to_graph: Vector of indices of length V. Mapping from nodes to the graphs
             to which they belong.
     """
 
