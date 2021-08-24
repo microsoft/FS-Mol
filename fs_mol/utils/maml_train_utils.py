@@ -11,7 +11,7 @@ import tensorflow as tf
 from tf2_gnn.cli_utils.model_utils import _get_name_to_variable_map, load_weights_verbosely
 from tf2_gnn.cli_utils.dataset_utils import get_model_file_path
 
-from fs_mol.data import DataFold, FSMolDataset, FSMolTaskSample, MoleculeDatapoint
+from fs_mol.data import DataFold, FSMolDataset, FSMolTaskSample
 from fs_mol.models.metalearning_graph_binary_classification import (
     MetalearningGraphBinaryClassificationTask,
 )
