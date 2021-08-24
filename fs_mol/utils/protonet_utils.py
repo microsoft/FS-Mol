@@ -12,7 +12,6 @@ sys.path.insert(0, str(project_root()))
 
 from fs_mol.data.fsmol_dataset import DataFold, FSMolDataset
 from fs_mol.data.protonet import ProtoNetBatch, get_protonet_task_sample_iterable
-from fs_mol.models.interface import AbstractTorchModel
 from fs_mol.models.protonet import PrototypicalNetwork, PrototypicalNetworkConfig
 from fs_mol.utils.metrics import BinaryEvalMetrics, compute_binary_task_metrics, avg_metrics_list
 from fs_mol.utils.metric_logger import MetricLogger
@@ -76,7 +75,7 @@ def run_on_batches(
     return total_loss.cpu().item() / total_num_samples, metrics
 
 
-class PrototypicalNetworkTrainer(PrototypicalNetwork, AbstractTorchModel[ProtoNetBatch]):
+class PrototypicalNetworkTrainer(PrototypicalNetwork):
     def __init__(self, config: PrototypicalNetworkTrainerConfig):
         super().__init__(config)
         self.config = config
