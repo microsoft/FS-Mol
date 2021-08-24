@@ -11,10 +11,10 @@ sys.path.insert(0, str(project_root()))
 
 from fs_mol.data.fsmol_task import FSMolTaskSample
 from fs_mol.data.multitask import get_multitask_inference_batcher
+from fs_mol.models.abstract_torch_fsmol_model import resolve_starting_model_file
 from fs_mol.models.gnn_multitask import GNNMultitaskModel
 from fs_mol.multitask_train import eval_model_by_finetuning_on_task
 from fs_mol.utils.metrics import BinaryEvalMetrics
-from fs_mol.utils.multitask_utils import resolve_starting_model_file
 from fs_mol.utils.test_utils import add_eval_cli_args, eval_model, set_up_test_run
 
 
@@ -98,7 +98,7 @@ def main():
         test_model_fn=test_model_fn,
         dataset=dataset,
         train_set_sample_sizes=args.train_sizes,
-        out_dir=args.save_dir,
+        out_dir=out_dir,
         num_samples=args.num_runs,
         valid_size_or_ratio=0.2,
         seed=args.seed,

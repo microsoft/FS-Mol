@@ -1,0 +1,3 @@
+[submodule "third_party/MAT"]
+	path = third_party/MAT
+	url = https://github.com/ardigen/MAT
