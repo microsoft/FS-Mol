@@ -133,20 +133,18 @@ def validate_on_data_iterable(
         return getattr(valid_metrics, metric_to_use)
 
 
-def finetune_and_eval_on_task(
+def eval_model_by_finetuning_on_task(
     model: MetalearningGraphBinaryClassificationTask,
     model_weights: Dict[str, tf.Tensor],
-    train_samples: List[MoleculeDatapoint],
-    valid_samples: List[MoleculeDatapoint],
-    test_samples: List[MoleculeDatapoint],
-    out_folder: str,
+    task_sample: FSMolTaskSample,
+    temp_out_folder: str,
     max_num_nodes_in_batch: int,
     metric_to_use: MetricType = "avg_precision",
     max_num_epochs: int = 50,
     patience: int = 10,
     quiet: bool = False,
 ) -> BinaryEvalMetrics:
-    model_save_file = os.path.join(out_folder, f"best_model.pkl")
+    model_save_file = os.path.join(temp_out_folder, f"best_model.pkl")
     # We now need to set the parameters to their current values in the training model:
     for var in model.trainable_variables:
         # Note that the validation model is created under tf.name_scope("valid"), and so
@@ -161,12 +159,12 @@ def finetune_and_eval_on_task(
         best_valid_metric = train_loop(
             model=model,
             train_data=TFGraphBatchIterable(
-                samples=train_samples, max_num_nodes=max_num_nodes_in_batch
+                samples=task_sample.train_samples, max_num_nodes=max_num_nodes_in_batch
             ),
             valid_fn=partial(
                 validate_on_data_iterable,
                 data_iterable=TFGraphBatchIterable(
-                    samples=valid_samples, max_num_nodes=max_num_nodes_in_batch
+                    samples=task_sample.valid_samples, max_num_nodes=max_num_nodes_in_batch
                 ),
                 metric_to_use="loss",
                 quiet=True,
@@ -183,41 +181,15 @@ def finetune_and_eval_on_task(
     load_weights_verbosely(model_save_file, model)
 
     test_loss, _, test_model_results = model.run_one_epoch(
-        TFGraphBatchIterable(samples=test_samples, max_num_nodes=max_num_nodes_in_batch),
+        TFGraphBatchIterable(
+            samples=task_sample.test_samples, max_num_nodes=max_num_nodes_in_batch
+        ),
         training=False,
         quiet=quiet,
     )
     test_metrics = __metrics_from_batch_results(test_model_results)
     logger.log(PROGRESS_LOG_LEVEL, f" Test loss:                   {float(test_loss):.5f}")
     logger.log(PROGRESS_LOG_LEVEL, f" Test metrics: {test_metrics}")
-
-    return test_metrics
-
-
-def eval_model_by_finetuning_on_task(
-    model: MetalearningGraphBinaryClassificationTask,
-    model_weights: Dict[str, tf.Tensor],
-    task_sample: FSMolTaskSample,
-    temp_out_folder: str,
-    max_num_nodes_in_batch: int,
-    metric_to_use: MetricType = "avg_precision",
-    max_num_epochs: int = 50,
-    patience: int = 10,
-    quiet: bool = False,
-) -> BinaryEvalMetrics:
-    test_metrics = finetune_and_eval_on_task(
-        model,
-        model_weights,
-        train_samples=task_sample.train_samples,
-        valid_samples=task_sample.valid_samples,
-        test_samples=task_sample.test_samples,
-        out_folder=temp_out_folder,
-        max_num_nodes_in_batch=max_num_nodes_in_batch,
-        metric_to_use=metric_to_use,
-        max_num_epochs=max_num_epochs,
-        patience=patience,
-        quiet=quiet,
-    )
 
     logger.info(
         f" Dataset sample has {task_sample.test_pos_label_ratio:.4f} positive label ratio in test data."
