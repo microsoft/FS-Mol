@@ -583,6 +583,8 @@ def plot_task_performances_byid(
     highlight_class: Optional[int] = None,
 ) -> None:
 
+    plt.rcParams.update({"font.size": 14, "text.usetex": True})
+
     frac_positives = merged_df["fraction_positive_train"]
     _, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 6))
     ax.flatten()
@@ -595,7 +597,7 @@ def plot_task_performances_byid(
     frac_pos_to_auprc_ax.plot(n, n, color="black")
 
     for i, model_name in enumerate(model_summaries.keys()):
-        color = plt.get_cmap("plasma").colors[i * 30]
+        color = plt.get_cmap("plasma").colors[i * 50 + 10]
         # Get AUPRC for each model, to plot against fraction of posirives
         model_auprcs = [
             get_number_from_val_plusminus_error(model_result)
@@ -807,3 +809,64 @@ def calculate_delta_auprc(
             )
 
     return extend_df
+
+
+def box_plot(
+    extend_df: pd.DataFrame,
+    model_summaries: Dict[str, str],
+    num_samples: int,
+    plot_output_dir: Optional[str] = None,
+):
+
+    light_color = plt.get_cmap("plasma").colors[170]
+    dark_color = "black"
+
+    plt.rcParams.update(
+        {
+            "font.size": 20,
+            "text.usetex": True,
+            "font.family": "serif",
+            "font.serif": "Computer Modern Roman",
+        }
+    )
+
+    plt.rc("xtick", labelsize=18)
+    plt.rc("ytick", labelsize=18)
+
+    model_cols = []
+    model_names = []
+    for model_name in model_summaries.keys():
+        model_cols.append(f"{num_samples}_train ({model_name}) val delta-auprc")
+        model_names.append(f"{model_name}")
+
+    bp_dict = extend_df.boxplot(
+        column=model_cols,
+        grid=False,
+        fontsize=15,
+        vert=False,
+        patch_artist=True,
+        return_type="both",
+        figsize=(10, 10),
+    )
+    bp_dict.ax.set_yticklabels(model_names)
+    bp_dict.ax.set_xlabel("$\Delta$ AUPRC")
+
+    # for row_key, (ax,row) in bp_dict.iteritems():
+    for i, box in enumerate(bp_dict.lines["boxes"]):
+        box.set_facecolor(light_color)
+        box.set_edgecolor(dark_color)
+        box.set(alpha=0.8)
+    for i, box in enumerate(bp_dict.lines["fliers"]):
+        box.set_markeredgecolor(dark_color)
+    for i, box in enumerate(bp_dict.lines["whiskers"]):
+        box.set_color(dark_color)
+    for i, box in enumerate(bp_dict.lines["caps"]):
+        box.set_color(dark_color)
+    for i, box in enumerate(bp_dict.lines["medians"]):
+        box.set_color("black")
+
+        if plot_output_dir is not None:
+            plt.savefig(
+                os.path.join(plot_output_dir, f"comparison_boxplot_{num_samples}.png"),
+                bbox_inches="tight",
+            )
