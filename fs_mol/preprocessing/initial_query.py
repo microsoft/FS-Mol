@@ -5,14 +5,20 @@ In this case, the query looks for assays that have more than 32 datapoints.
 """
 
 import os
+import sys
 import csv
 import json
 import logging
+from pathlib import Path
 from typing import Tuple, Dict, Any, List
 import mysql.connector
 from mysql.connector import Error
 
-from preprocessing.utils.db_utils import read_db_config
+from pyreporoot import project_root
+
+sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
+
+from fs_mol.preprocessing.utils.db_utils import read_db_config
 
 logger = logging.getLogger(__name__)
 

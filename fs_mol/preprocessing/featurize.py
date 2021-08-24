@@ -18,19 +18,20 @@ import logging
 import pandas as pd
 from glob import glob
 from typing import List
+from pathlib import Path
 
 from dpu_utils.utils import run_and_debug, RichPath
 
-from pyprojroot import here as project_root
+from pyreporoot import project_root
 
-sys.path.insert(0, str(project_root("fs_mol")))
+sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
 
-from preprocessing.featurisers.featurise_utils import (
+from fs_mol.preprocessing.featurisers.featurise_utils import (
     get_featurizing_argparser,
     load_csv_assay_data,
     featurise_smiles_datapoints,
 )
-from preprocessing.utils.save_utils import (
+from fs_mol.preprocessing.utils.save_utils import (
     save_assay_data,
     save_metadata,
 )

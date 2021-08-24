@@ -5,15 +5,22 @@ Assays of interest are passed in a list/config.ini file.
 
 """
 
-import os
 import csv
 import logging
+import os
+import sys
+from pathlib import Path
 from typing import Dict, Any
+from pathlib import Path
 import mysql.connector
 from mysql.connector import Error
 
-from preprocessing.utils.db_utils import read_db_config, read_assay_list
-from preprocessing.utils.queries import (
+from pyreporoot import project_root
+
+sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
+
+from fs_mol.preprocessing.utils.db_utils import read_db_config, read_assay_list
+from fs_mol.preprocessing.utils.queries import (
     CHEMBL_ASSAY_PROTEIN,
     DISTINCT_TABLES,
     COUNT_QUERIES,
@@ -24,7 +31,7 @@ from preprocessing.utils.queries import (
     PROTEIN_FIELDS,
     CELL_FIELDS,
 )
-from preprocessing.initial_query import run_initial_query
+from fs_mol.preprocessing.initial_query import run_initial_query
 
 logging.basicConfig(filename="querying.log", format="%(asctime)s %(message)s", filemode="w")
 

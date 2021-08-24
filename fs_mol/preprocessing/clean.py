@@ -23,19 +23,20 @@ import sys
 import csv
 import json
 import logging
-import pandas as pd
-import numpy as np
 from dataclasses import dataclass
 from glob import glob
-from typing import List, Dict, Any, Tuple
-from multiprocessing import cpu_count
-from multiprocessing.pool import Pool
+from typing import List, Tuple
+from pathlib import Path
+from multiprocessing import cpu_count, Pool
 
-from pyprojroot import here as project_root
+import pandas as pd
+import numpy as np
 
-sys.path.insert(0, str(project_root("fs_mol")))
+from pyreporoot import project_root
 
-from preprocessing.utils.cleaning_utils import (
+sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
+
+from fs_mol.preprocessing.utils.cleaning_utils import (
     clean_units,
     log_standard_values,
     standardize_smiles,
@@ -213,7 +214,7 @@ def get_argparser():
         dest="input_dir",
         type=str,
         default="raw/",
-        help="Directory under $BASEPATH containing the input data to be cleaned.",
+        help="Directory under $BASE_PATH containing the input data to be cleaned.",
     )
 
     parser.add_argument(
@@ -221,7 +222,7 @@ def get_argparser():
         dest="output_name",
         type=str,
         default="",
-        help="Suffix to directory to save in $BASEPATH/cleaned$output_name.",
+        help="Suffix to directory to save in $BASE_PATH/cleaned$output_name.",
     )
 
     parser.add_argument(
