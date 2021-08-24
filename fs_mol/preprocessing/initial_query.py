@@ -101,7 +101,6 @@ def run_initial_query(
                     ],
                 )
                 writer.writeheader()
-            with open(filename, "a") as f:
                 writer = csv.writer(f)
                 writer.writerows(rows)
 
