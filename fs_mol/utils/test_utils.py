@@ -160,7 +160,7 @@ def eval_model(
     dataset: FSMolDataset,
     train_set_sample_sizes: List[int],
     out_dir: Optional[str] = None,
-    num_samples: int = 5,
+    num_samples: int = 10,
     valid_size_or_ratio: Union[int, float] = 0.0,
     test_size_or_ratio: Optional[Union[int, float, Tuple[int, int]]] = None,
     fold: DataFold = DataFold.TEST,
