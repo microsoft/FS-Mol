@@ -13,6 +13,18 @@ from pandas.core.base import DataError
 from azureml.core import Run
 
 
+TRAIN_SIZES_TO_COMPARE = [16, 32, 64, 128, 256]
+
+plt.rcParams.update(
+    {
+        "font.size": 20,
+        "text.usetex": False,
+        "font.family": "serif",
+        "font.serif": "Computer Modern Roman",
+    }
+)
+
+
 def default_taskname_extractor_fn(filename: str) -> str:
     filename = os.path.basename(filename)
 
@@ -553,11 +565,10 @@ def load_data(
 def expand_values(
     df: pd.DataFrame,
     model_summaries: Dict[str, str],
-    TRAIN_SIZES_TO_COMPARE: List[int] = [16, 32, 64, 128, 256],
 ) -> pd.DataFrame:
 
     all_df = df.copy()
-    for num_samples in [16, 32, 64, 128, 256]:
+    for num_samples in TRAIN_SIZES_TO_COMPARE:
         for model_name in model_summaries.keys():
             all_df[f"{num_samples}_train ({model_name}) std"] = all_df.apply(
                 lambda row: get_number_from_val_plusminus_error(
@@ -572,13 +583,13 @@ def expand_values(
                 axis=1,
             )
 
-    return all_df
+    return calculate_delta_auprc(all_df, model_summaries)
 
 
-def plot_task_performances_byid(
+def plot_task_performances_by_id(
     merged_df: pd.DataFrame,
     model_summaries: Dict[str, str],
-    num_samples_choice: int,
+    support_set_size: int = 16,
     plot_output_dir: str = None,
     highlight_class: Optional[int] = None,
 ) -> None:
@@ -601,7 +612,7 @@ def plot_task_performances_byid(
         # Get AUPRC for each model, to plot against fraction of posirives
         model_auprcs = [
             get_number_from_val_plusminus_error(model_result)
-            for model_result in merged_df[f"{num_samples_choice}_train ({model_name})"].values
+            for model_result in merged_df[f"{support_set_size}_train ({model_name})"].values
         ]
         frac_pos_to_auprc_ax.scatter(
             frac_positives, model_auprcs, s=100, marker="+", label=model_name, color=color
@@ -621,7 +632,7 @@ def plot_task_performances_byid(
         model_auprc_diff_to_random = (
             merged_df.apply(
                 lambda row: get_number_from_val_plusminus_error(
-                    row[f"{num_samples_choice}_train ({model_name})"]
+                    row[f"{support_set_size}_train ({model_name})"]
                 ),
                 axis=1,
             ).fillna(0)
@@ -647,17 +658,17 @@ def plot_task_performances_byid(
             )
 
     frac_pos_to_auprc_ax.set_xlabel("fraction positive points")
-    frac_pos_to_auprc_ax.set_ylabel(f"Average precision with {num_samples_choice} train points")
+    frac_pos_to_auprc_ax.set_ylabel(f"Average precision with {support_set_size} train points")
     frac_pos_to_auprc_ax.legend()
     frac_pos_to_auprc_ax.set_xlim([0.29, 0.51])
-    frac_pos_to_auprc_ax.set_title(f"Class imbalance vs. AUPRC: $|T_s|$ = {num_samples_choice}")
+    frac_pos_to_auprc_ax.set_title(f"Class imbalance vs. AUPRC: $|T_s|$ = {support_set_size}")
 
     assay_id_to_improv_ax.set_xlabel("TASK ID")
-    assay_id_to_improv_ax.set_ylabel(f"AUPRC gain with {num_samples_choice} train points")
+    assay_id_to_improv_ax.set_ylabel(f"AUPRC gain with {support_set_size} train points")
     assay_id_to_improv_ax.set_ylim([-0.01, 0.42])
     assay_id_to_improv_ax.legend()
     assay_id_to_improv_ax.set_title(
-        f"AUPRC improvement over random classification: $|T_s|$ = {num_samples_choice}"
+        f"AUPRC improvement over random classification: $|T_s|$ = {support_set_size}"
     )
 
     assay_id_to_improv_ax.set_xticklabels(merged_df["TASK_ID"][0:-1:4], Rotation=90)
@@ -667,7 +678,7 @@ def plot_task_performances_byid(
     if plot_output_dir is not None:
         plt.savefig(
             os.path.join(
-                plot_output_dir, f"model_comparison_{num_samples_choice}{highlight_class_str}.png"
+                plot_output_dir, f"model_comparison_{support_set_size}{highlight_class_str}.png"
             )
         )
 
@@ -796,7 +807,7 @@ def aggregate_by_class(
 def calculate_delta_auprc(
     df: pd.DataFrame,
     model_summaries: Dict[str, str],
-    train_samples_to_compare: List[int] = [16, 32, 64, 128, 256],
+    train_samples_to_compare: List[int] = TRAIN_SIZES_TO_COMPARE,
 ) -> pd.DataFrame:
 
     extend_df = df.copy()
@@ -814,9 +825,9 @@ def calculate_delta_auprc(
 def box_plot(
     extend_df: pd.DataFrame,
     model_summaries: Dict[str, str],
-    num_samples: int,
+    support_set_size: int = 16,
     plot_output_dir: Optional[str] = None,
-):
+) -> None:
 
     light_color = plt.get_cmap("plasma").colors[170]
     dark_color = "black"
@@ -836,7 +847,7 @@ def box_plot(
     model_cols = []
     model_names = []
     for model_name in model_summaries.keys():
-        model_cols.append(f"{num_samples}_train ({model_name}) val delta-auprc")
+        model_cols.append(f"{support_set_size}_train ({model_name}) val delta-auprc")
         model_names.append(f"{model_name}")
 
     bp_dict = extend_df.boxplot(
@@ -867,6 +878,156 @@ def box_plot(
 
         if plot_output_dir is not None:
             plt.savefig(
-                os.path.join(plot_output_dir, f"comparison_boxplot_{num_samples}.png"),
+                os.path.join(plot_output_dir, f"comparison_boxplot_{support_set_size}.png"),
                 bbox_inches="tight",
             )
+
+
+def get_aggregates_across_sizes(
+    df: pd.DataFrame,
+    model_summaries: Dict[str, str],
+) -> pd.DataFrame:
+    TRAIN_SIZES_TO_COMPARE = [16, 32, 64, 128, 256]
+
+    full_df = None
+
+    for train_size in TRAIN_SIZES_TO_COMPARE:
+
+        aggregation = aggregate_by_class(
+            df, model_summaries, classes=list(df.EC_super_class.unique()), num_samples=train_size
+        )
+
+        if full_df is None:
+
+            full_df = aggregation
+        else:
+            full_df = full_df.merge(aggregation, how="inner", on="EC_category")
+
+    full_df.set_index("EC_category", inplace=True)
+
+    return full_df
+
+
+def grab_row_values(row, model_name):
+    vals = []
+    for i, val in zip(row.index, row.values):
+        if i.endswith(f"({model_name})"):
+            vals.append(val)
+    return vals
+
+
+def grab_row_values_std(row, model_name):
+    vals = []
+    for i, val in zip(row.index, row.values):
+        if i.endswith(f"({model_name}) std"):
+            vals.append(val)
+    return vals
+
+
+def collect_model_results(
+    df: pd.DataFrame, model_summaries: Dict[str, str]
+) -> Tuple[Dict[str, pd.Series], Dict[str, pd.Series]]:
+
+    vals = {}
+    stds = {}
+
+    for model_name in model_summaries.keys():
+
+        vals[model_name] = df.apply(lambda row: grab_row_values(row, model_name), axis=1)
+        stds[model_name] = df.apply(lambda row: grab_row_values_std(row, model_name), axis=1)
+
+    return vals, stds
+
+
+def plot_by_size(
+    df: pd.DataFrame,
+    model_summaries: Dict[str, str],
+    plot_output_dir: Optional[str] = None,
+    plot_all_classes: bool = False,
+):
+    """
+    Plotting function to create the aggregation-by-support-set-size plot.
+
+    Args:
+        df: aggregation dataframe -- output of "get_aggregates_across_sizes"
+        function
+        model_summaries: the model summaries dictionary.
+        plot_output_dir: final directory to save plot if required.
+        plot_all_classes: if True, all line plots are broken in to EC classes
+        (not recommended for many models to compare).
+
+    """
+
+    def get_style(cls, model_name):
+        if cls == "all":
+            label = model_name
+            lw = 1.0
+            ls = "-"
+            alpha = 1.0
+        else:
+            label = f"{model_name}, {cls}"
+            lw = 1.0
+            alpha = 1.0
+            ls = "dotted"
+
+        return ls, lw, label, alpha
+
+    # pull all values out of the aggregate df
+    vals, stds = collect_model_results(df, model_summaries)
+    categories = {x: i for i, x in enumerate(vals["GNN-MAML"].index)}
+    reduced_list = ["all"]
+    reduced = {k: categories[k] for k in reduced_list if k in categories}
+
+    if not plot_all_classes:
+        plot_dict = reduced
+    else:
+        plot_dict = categories
+
+    plt.rcParams.update(
+        {
+            "font.size": 20,
+            "text.usetex": True,
+            "font.family": "serif",
+            "font.serif": "Computer Modern Roman",
+        }
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    for i, model_name in enumerate(model_summaries.keys()):
+        color = plt.get_cmap("plasma").colors[i * 50 + 50]
+
+        a = vals[model_name]
+        v = stds[model_name]
+
+        for cls, i in plot_dict.items():
+            ls, lw, label, alpha = get_style(cls, model_name)
+            ax.errorbar(
+                TRAIN_SIZES_TO_COMPARE,
+                a.values[i],
+                v.values[i],
+                label=label,
+                linestyle=ls,
+                marker="o",
+                ms=8,
+                color=color,
+                alpha=alpha,
+                linewidth=lw,
+            )
+
+    ax.legend(loc="best", ncol=2)
+    ax.set_ylabel("$\Delta$ AUPRC")
+    ax.set_xlabel("$|\mathcal{T}_{u, support}|$")
+    ax.set_xticks(TRAIN_SIZES_TO_COMPARE)
+    ax.set_xticklabels(TRAIN_SIZES_TO_COMPARE)
+    plt.grid(True, color="grey", alpha=0.3, linestyle="--")
+
+    if plot_output_dir is not None:
+        plt.savefig(os.path.join(plot_output_dir, f"comparison_plot.png"), bbox_inches="tight")
+
+    # need to do this to get autorank to work (does not work by setting in notebook)
+    plt.rcParams.update(
+        {
+            "text.usetex": False,
+        }
+    )
