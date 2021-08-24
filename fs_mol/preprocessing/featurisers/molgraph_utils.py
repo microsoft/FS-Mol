@@ -2,9 +2,11 @@
 Utils for converting an rdkit mol into a graph: a dict containing node features and
 adjacency lists.
 """
+import sys
 import tqdm
 import logging
 import numpy as np
+from pathlib import Path
 from typing import List, Dict, Any, Iterable, Optional, NamedTuple, Tuple
 
 # rdkit imports
@@ -15,11 +17,15 @@ from rdkit.Chem import (
     MolToSmiles,
 )
 
-from preprocessing.featurisers.featurisers import (
+from pyreporoot import project_root
+
+sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
+
+from fs_mol.preprocessing.featurisers.featurisers import (
     AtomFeatureExtractor,
     get_default_atom_featurisers,
 )
-from preprocessing.featurisers.rdkit_helpers import get_atom_symbol
+from fs_mol.preprocessing.featurisers.rdkit_helpers import get_atom_symbol
 
 logger = logging.getLogger(__name__)
 

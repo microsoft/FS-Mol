@@ -2,14 +2,21 @@
 Featuriser classes for containing vocabularies and performing featurisation
 on individual atoms from an rdkit Mol.
 """
+import sys
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict
+
+from pathlib import Path
 import numpy as np
 
 from rdkit.Chem.rdchem import Atom
 
-from preprocessing.featurisers.rdkit_helpers import get_atom_symbol
+from pyreporoot import project_root
+
+sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
+
+from fs_mol.preprocessing.featurisers.rdkit_helpers import get_atom_symbol
 
 
 class FeatureType(Enum):
