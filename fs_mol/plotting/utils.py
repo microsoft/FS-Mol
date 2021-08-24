@@ -595,7 +595,7 @@ def plot_task_performances_byid(
     frac_pos_to_auprc_ax.plot(n, n, color="black")
 
     for i, model_name in enumerate(model_summaries.keys()):
-        color = plt.get_cmap("plasma").colors[i * 30]
+        color = plt.get_cmap("plasma").colors[i * 50 + 10]
         # Get AUPRC for each model, to plot against fraction of posirives
         model_auprcs = [
             get_number_from_val_plusminus_error(model_result)
