@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 
 from fs_mol.data.multitask import FSMolMultitaskBatch
-from fs_mol.models.interface import AbstractTorchModel
+from fs_mol.models.abstract_torch_fsmol_model import AbstractTorchFSMolModel
 from fs_mol.modules.gnn import GNN, GNNConfig
 from fs_mol.modules.graph_readout import (
     GraphReadout,
@@ -36,7 +36,7 @@ class GNNMultitaskConfig:
     num_tail_layers: int = 1
 
 
-class GNNMultitaskModel(AbstractTorchModel[FSMolMultitaskBatch]):
+class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
     def __init__(self, config: GNNMultitaskConfig):
         super().__init__()
         self.config = config

@@ -10,10 +10,10 @@ sys.path.insert(0, str(project_root()))
 
 from fs_mol.data import FSMolDataset, FSMolTaskSample
 from fs_mol.data.protonet import get_protonet_batcher, task_sample_to_pn_task_sample
+from fs_mol.models.abstract_torch_fsmol_model import resolve_starting_model_file
 from fs_mol.models.protonet import PrototypicalNetwork
 from fs_mol.utils.protonet_utils import PrototypicalNetworkTrainer, run_on_batches
 from fs_mol.utils.metrics import BinaryEvalMetrics
-from fs_mol.utils.multitask_utils import resolve_starting_model_file
 from fs_mol.utils.test_utils import eval_model, add_eval_cli_args, set_up_test_run
 
 
@@ -113,7 +113,7 @@ def main():
     test(
         model,
         dataset,
-        save_dir=args.save_dir,
+        save_dir=out_dir,
         context_sizes=args.train_sizes,
         num_samples=args.num_runs,
         seed=args.seed,
