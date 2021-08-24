@@ -102,7 +102,7 @@ class FSMolBatcher(Generic[BatchFeatureType, BatchLabelType]):
         satisfied.
 
         Args:
-            max_num_rgaphs (Optional): If set, the maximum number of graphs added to a batch.
+            max_num_graphs (Optional): If set, the maximum number of graphs added to a batch.
             max_num_nodes (Optional): If set, maximum number of nodes added to a batch;
                 the batch method checks that adding another graph will not cause overflow and
                 creates a new batch if that is the case
