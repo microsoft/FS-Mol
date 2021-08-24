@@ -12,6 +12,7 @@ from tf2_gnn.cli_utils.model_utils import _get_name_to_variable_map, load_weight
 from tf2_gnn.cli_utils.dataset_utils import get_model_file_path
 
 from fs_mol.data import DataFold, FSMolDataset, FSMolTaskSample, MoleculeDatapoint
+from fs_mol.data.maml import TFGraphBatchIterable
 from fs_mol.models.metalearning_graph_binary_classification import (
     MetalearningGraphBinaryClassificationTask,
 )
@@ -22,7 +23,6 @@ from fs_mol.utils.metrics import (
     avg_metrics_list,
     compute_binary_task_metrics,
 )
-from fs_mol.utils.maml_data_utils import TFGraphBatchIterable
 from fs_mol.utils.test_utils import eval_model
 
 

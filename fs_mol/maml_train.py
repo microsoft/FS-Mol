@@ -18,7 +18,6 @@ from dpu_utils.utils import run_and_debug, RichPath
 from more_itertools import chunked
 from tf2_gnn.cli_utils.model_utils import load_weights_verbosely
 from tf2_gnn.cli_utils.training_utils import unwrap_tf_tracked_data
-from tf2_gnn.data.graph_dataset import GraphSample
 from tf2_gnn.layers import get_known_message_passing_classes
 
 from pyreporoot import project_root
@@ -32,13 +31,13 @@ from fs_mol.data import (
     FSMolTaskSample,
     StratifiedTaskSampler,
 )
+from fs_mol.data.maml import FSMolStubGraphDataset, TFGraphBatchIterable
 from fs_mol.models.metalearning_graph_binary_classification import (
     MetalearningGraphBinaryClassificationTask,
 )
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
 from fs_mol.utils.logging import FileLikeLogger, PROGRESS_LOG_LEVEL
-from fs_mol.utils.maml_data_utils import FSMolStubGraphDataset, TFGraphBatchIterable
-from fs_mol.utils.maml_train_utils import save_model, eval_model_by_finetuning_on_tasks
+from fs_mol.utils.maml_utils import save_model, eval_model_by_finetuning_on_tasks
 
 
 logger = logging.getLogger(__name__)
@@ -212,7 +211,7 @@ def metatrain_loop(
         test_size_or_ratio=(min_test_size, test_size),
     )
 
-    def read_and_sample_from_task(paths: List[RichPath], id: int) -> Iterable[GraphSample]:
+    def read_and_sample_from_task(paths: List[RichPath], id: int) -> Iterable[FSMolTaskSample]:
         for i, path in enumerate(paths):
             task = FSMolTask.load_from_file(path)
             yield task_sampler.sample(task, seed=id + i)
