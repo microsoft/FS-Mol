@@ -14,6 +14,8 @@ from typing import Tuple, Dict, Any, List
 import mysql.connector
 from mysql.connector import Error
 
+import pandas as pd
+
 from pyreporoot import project_root
 
 sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
@@ -59,7 +61,7 @@ def get_confidence_scores(cursor, output_dir: str) -> Tuple[str, str]:
 
 def run_initial_query(
     db_config: Dict[str, Any], base_output_dir: str, close_cursor: bool = True
-) -> List[str]:
+) -> str:
 
     """
     Query to get confidence scores and all assay names for each score
@@ -73,7 +75,7 @@ def run_initial_query(
     logger.info(f"Saving assay lists to {output_dir}")
 
     assay_list = []
-    assay_list_file = os.path.join(base_output_dir, "assay_list.json")
+    assay_list_file = os.path.join(base_output_dir, "assays.jsonl")
 
     try:
         conn = mysql.connector.connect(**db_config)
@@ -128,16 +130,38 @@ def run_initial_query(
     with open(assay_list_file, "w") as jf:
         json.dump(assay_list_dict, jf)
 
-    return assay_list
+    return assay_list_file
+
+
+def recreate_assay_list_file(base_output_dir: str, assay_list_file: str) -> None:
+    all_assays = []
+    for cs in range(0, 10):
+        assays = list(
+            pd.read_csv(os.path.join(base_output_dir, f"assays_{cs}.csv")).chembl_id.values
+        )
+        all_assays.extend(assays)
+    assays = {}
+    assays["assays"] = all_assays
+
+    with open(assay_list_file, "w") as jf:
+        json.dump(assays, jf)
 
 
 def run():
 
     db_config = read_db_config()
-    assay_config = read_db_config(section="assays")
+    assay_config = read_db_config(section="initialquery")
     base_output_dir = assay_config["output_dir"]
 
-    _ = run_initial_query(db_config, base_output_dir)
+    assay_list_file = run_initial_query(db_config, base_output_dir)
+
+    # check that the assay list file exists and is not empty
+    with open(assay_list_file, "r") as jf:
+        assays = json.load(jf)["assays"]
+
+    if len(assays) == 0:
+        logger.info("Assay list file is empty, repopulating from intermediate files.")
+        recreate_assay_list_file(base_output_dir, assay_list_file)
 
 
 if __name__ == "__main__":

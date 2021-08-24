@@ -207,7 +207,7 @@ def run(args):
                     summary_filenames,
                 )
             except Exception as e:
-                logger.exception(f"Cannot query for assay {assay}: {e}")
+                logger.exception(f"Unsuccessful query for for assay {assay}: {e}")
                 continue
 
     except Error as e:
