@@ -32,7 +32,7 @@ class FSMolBatch:
         num_edges: total number of edges in batch; one batch contains multitple disconnected
             graphs where edges and nodes are renumbered accordingly.
         node_features: each node has a vector representation dependent on featurisation,
-            eg. atom type, charge, valency. [V, atom_features] float, where V is number of nodes
+            e.g. atom type, charge, valency. [V, atom_features] float, where V is number of nodes
         adjacency_lists: Lists of all edges in the batch, for each edge type.
             list, len num_edge_types, elements [num edges, 2] int tensors
         edge_features: edges may also have vector representation carrying information specific
@@ -96,23 +96,23 @@ def fsmol_batch_finalizer(batch_data: Dict[str, Any]) -> FSMolBatch:
 
 class FSMolBatcher(Generic[BatchFeatureType, BatchLabelType]):
     """Create a batcher object. Acts on an iterable over MoleculeDatapoints to create
-    suitably sized mini-batches.
+    suitably sized mini-batches. The batch method checks that adding another graph
+    will not cause overflow of maximum number of total edges, nodes or graphs,
+    and creates a new batch if that is the case.
 
-        Sampling can only fail if a fixed size is requested for any of the folds that cannot be
-        satisfied.
+    Sampling can only fail if a fixed size is requested for any of the folds that cannot be
+    satisfied.
 
-        Args:
-            max_num_graphs (Optional): If set, the maximum number of graphs added to a batch.
-            max_num_nodes (Optional): If set, maximum number of nodes added to a batch;
-                the batch method checks that adding another graph will not cause overflow and
-                creates a new batch if that is the case
-            max_num_edges (Optional): If set, maximum permitted edges in a batch.
-            init_callback (Optional): Callable that can be passed to operate on the initial batch to,
-                for example, add additional members to a batch data dictionary before building.
-            per_datapoint_callback (Optional): Callable that permits a user to operate on a datapoint and batch
-                prior to finalisation to perform additional operations. eg. compute extra features.
-            finalizer_callback (Optional): Callable to allow the final batch to be returned in a specific
-                form, eg. as instance of FSMolBatch.
+    Args:
+        max_num_graphs (Optional): If set, the maximum number of graphs added to a batch.
+        max_num_nodes (Optional): If set, maximum number of nodes added to a batch.
+        max_num_edges (Optional): If set, maximum permitted edges in a batch.
+        init_callback (Optional): Callable that can be passed to operate on the initial batch to,
+            for example, add additional members to a batch data dictionary before building.
+        per_datapoint_callback (Optional): Callable that permits a user to operate on a datapoint and batch
+            prior to finalisation to perform additional operations. e.g. compute extra features.
+        finalizer_callback (Optional): Callable to allow the final batch to be returned in a specific
+            form, e.g. as instance of FSMolBatch.
     """
 
     def __init__(
