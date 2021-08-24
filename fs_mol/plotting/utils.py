@@ -887,7 +887,6 @@ def get_aggregates_across_sizes(
     df: pd.DataFrame,
     model_summaries: Dict[str, str],
 ) -> pd.DataFrame:
-    TRAIN_SIZES_TO_COMPARE = [16, 32, 64, 128, 256]
 
     full_df = None
 
