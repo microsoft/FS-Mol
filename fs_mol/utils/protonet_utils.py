@@ -1,3 +1,4 @@
+
 import logging
 import os
 import sys
@@ -17,6 +18,7 @@ from fs_mol.models.abstract_torch_fsmol_model import linear_warmup
 from fs_mol.models.protonet import PrototypicalNetwork, PrototypicalNetworkConfig
 from fs_mol.utils.metrics import BinaryEvalMetrics, compute_binary_task_metrics, avg_metrics_list
 from fs_mol.utils.metric_logger import MetricLogger
+from fs_mol.utils.torch_utils import torchify
 
 
 logger = logging.getLogger(__name__)
@@ -39,7 +41,7 @@ class PrototypicalNetworkTrainerConfig(PrototypicalNetworkConfig):
 def run_on_batches(
     model: PrototypicalNetwork,
     batches: List[ProtoNetBatch],
-    batch_labels: List[np.ndarray],
+    batch_labels: List[torch.Tensor],
     train: bool = False,
     tasks_per_batch: int = 1,
 ) -> Tuple[float, BinaryEvalMetrics]:
@@ -67,7 +69,7 @@ def run_on_batches(
         total_num_samples += batch_features.num_query_samples
         batch_preds = torch.nn.functional.softmax(batch_logits, dim=1).detach().cpu().numpy()
         task_preds.append(batch_preds[:, 1])
-        task_labels.append(batch_labels)
+        task_labels.append(batch_labels.detach().cpu().numpy())
 
     metrics = compute_binary_task_metrics(
         predictions=np.concatenate(task_preds, axis=0), labels=np.concatenate(task_labels, axis=0)
@@ -189,7 +191,7 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
         )
         return model
 
-    def train_loop(self, out_dir: str, dataset: FSMolDataset, aml_run=None):
+    def train_loop(self, out_dir: str, dataset: FSMolDataset, device: torch.device, aml_run=None):
         self.save_model(os.path.join(out_dir, "best_validation.pt"))
 
         train_task_sample_iterator = iter(
@@ -218,7 +220,8 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
             task_batch_losses: List[float] = []
             task_batch_metrics: List[BinaryEvalMetrics] = []
             for _ in range(self.config.tasks_per_batch):
-                train_task_sample = next(train_task_sample_iterator)
+                task_sample = next(train_task_sample_iterator)
+                train_task_sample = torchify(task_sample, device=device)
                 task_loss, task_metrics = run_on_batches(
                     self,
                     batches=train_task_sample.batches,
@@ -261,8 +264,8 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
                     with torch.set_grad_enabled(False):
                         task_loss, task_metrics = run_on_batches(
                             self,
-                            task_sample.batches,
-                            batch_labels=task_sample.batch_labels,
+                            torchify(task_sample.batches, device=device),
+                            batch_labels=torchify(task_sample.batch_labels, device=device),
                             train=False,
                         )
                         valid_losses.append(task_loss)

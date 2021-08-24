@@ -7,7 +7,7 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
-from fs_mol.modules.gnn import add_gnn_model_arguments, make_gnn_config_from_args
+from fs_mol.modules.graph_feature_extractor import add_graph_feature_extractor_arguments, make_graph_feature_extractor_config_from_args
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run
 from fs_mol.utils.protonet_utils import (
     PrototypicalNetworkTrainerConfig,
@@ -48,7 +48,7 @@ def parse_command_line():
         default="mahalanobis",
         help="Choice of distance to use.",
     )
-    add_gnn_model_arguments(parser)
+    add_graph_feature_extractor_arguments(parser)
 
     parser.add_argument("--support_set_size", type=int, default=16, help="Size of support set")
     parser.add_argument(
@@ -90,7 +90,7 @@ def parse_command_line():
 
 def make_trainer_config(args: argparse.Namespace) -> PrototypicalNetworkTrainerConfig:
     return PrototypicalNetworkTrainerConfig(
-        gnn_config=make_gnn_config_from_args(args),
+        graph_feature_extractor_config=make_graph_feature_extractor_config_from_args(args),
         used_features=args.features,
         distance_metric=args.distance_metric,
         batch_size=args.batch_size,
@@ -123,7 +123,7 @@ def main():
         logger.info(f"Loading pretrained GNN weights from {args.pretrained_gnn}.")
         model_trainer.load_model_gnn_weights(path=args.pretrained_gnn, device=device)
 
-    model_trainer.train_loop(out_dir, dataset, aml_run)
+    model_trainer.train_loop(out_dir, dataset, device, aml_run)
 
 
 if __name__ == "__main__":

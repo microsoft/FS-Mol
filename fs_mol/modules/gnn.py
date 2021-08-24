@@ -16,8 +16,8 @@ SMALL_NUMBER = 1e-7
 
 @dataclass
 class GNNConfig:
-    type: str = "MultiHeadAttention"
-    num_edge_types: int = 3
+    type: str = "PNA"
+    num_edge_types: int = NUM_EDGE_TYPES
     hidden_dim: int = 128
     num_heads: int = 4
     per_head_dim: int = 32
@@ -540,15 +540,9 @@ class GNN(nn.Module):
         # We may need to introduce additional edges to make everything bidirectional:
         if self.config.make_edges_bidirectional:
             adj_lists = [
-                np.concatenate((adj_list, np.flip(adj_list, axis=1)), axis=0)
+                torch.cat((adj_list, torch.flip(adj_list, dims=(1,))), dim=0)
                 for adj_list in adj_lists
             ]
-
-        # We need to make the adjacency lists appropriate tensors:
-        torch_adj_lists = []
-        for adj_list in adj_lists:
-            torch_adj_list = torch.tensor(adj_list, dtype=torch.long, device=node_features.device)
-            torch_adj_lists.append(torch_adj_list)
 
         # Actually do message passing:
         cur_node_representations = node_features
@@ -556,7 +550,7 @@ class GNN(nn.Module):
         for gnn_block in self.gnn_blocks:
             cur_node_representations = gnn_block(
                 node_representations=cur_node_representations,
-                adj_lists=torch_adj_lists,
+                adj_lists=adj_lists,
             )
             all_node_representations.append(cur_node_representations)
 

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing_extensions import Literal
 
 import torch
 import torch.nn as nn
@@ -111,7 +112,7 @@ class MultiHeadWeightedGraphReadout(GraphReadout):
         out_dim: int,
         num_heads: int,
         head_dim: int,
-        weighting_type: str,
+        weighting_type: Literal["weighted_sum", "weighted_mean"],
         num_mlp_layers: int = 1,
     ):
         """
@@ -191,7 +192,7 @@ class UnweightedGraphReadout(GraphReadout):
         self,
         node_dim: int,
         out_dim: int,
-        pooling_type: str,
+        pooling_type: Literal["min", "max", "sum", "mean"],
     ):
         """
         See superclass for first few parameters.

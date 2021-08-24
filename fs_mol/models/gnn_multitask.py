@@ -5,18 +5,14 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
 import torch
-import torch.nn as nn
 
 from fs_mol.data.multitask import FSMolMultitaskBatch
 from fs_mol.models.abstract_torch_fsmol_model import AbstractTorchFSMolModel
-from fs_mol.modules.gnn import GNN, GNNConfig
-from fs_mol.modules.graph_readout import (
-    GraphReadout,
-    CombinedGraphReadout,
-    MultiHeadWeightedGraphReadout,
-    UnweightedGraphReadout,
-)
 from fs_mol.modules.mlp import MLP
+from fs_mol.modules.graph_feature_extractor import (
+    GraphFeatureExtractor,
+    GraphFeatureExtractorConfig,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -24,15 +20,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class GNNMultitaskConfig:
+    graph_feature_extractor_config: GraphFeatureExtractorConfig
     num_tasks: int
-    gnn_config: GNNConfig
-    node_feature_dim: int = 32
-    num_outputs: int = 1
-    readout_type: str = "sum"
-    readout_use_only_last_timestep: bool = False
-    readout_dim: Optional[int] = None
-    readout_num_heads: int = 12
-    readout_head_dim: int = 64
     num_tail_layers: int = 1
 
 
@@ -42,56 +31,16 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
         self.config = config
         self.device = torch.device("cpu")  # Default, we'll override where appropriate
 
-        # Set some values / defaults:
-        config.num_outputs = config.num_tasks
+        self.graph_feature_extractor = GraphFeatureExtractor(config.graph_feature_extractor_config)
 
-        if config.readout_dim is None:
-            config.readout_dim = 4 * config.gnn_config.hidden_dim
-        else:
-            config.readout_dim
+        self.tail_mlp = self.__create_tail_MLP(self.config.num_tasks)
 
-        # Initial (per-node) layers:
-        self.init_node_proj = nn.Linear(
-            config.node_feature_dim, config.gnn_config.hidden_dim, bias=False
-        )
-
-        self.gnn = GNN(self.config.gnn_config)
-
-        if config.readout_use_only_last_timestep:
-            readout_node_dim = config.gnn_config.hidden_dim
-        else:
-            readout_node_dim = (config.gnn_config.num_layers + 1) * config.gnn_config.hidden_dim
-
-        # Readout layers:
-        if config.readout_type.startswith("combined"):
-            self.readout: GraphReadout = CombinedGraphReadout(
-                node_dim=readout_node_dim,
-                out_dim=config.readout_dim,
-                num_heads=config.readout_num_heads,
-                head_dim=config.readout_head_dim,
-            )
-        elif "weighted" in config.readout_type:
-            self.readout = MultiHeadWeightedGraphReadout(
-                node_dim=readout_node_dim,
-                out_dim=config.readout_dim,
-                num_heads=config.readout_num_heads,
-                head_dim=config.readout_head_dim,
-                weighting_type=config.readout_type,
-            )
-        else:
-            self.readout = UnweightedGraphReadout(
-                node_dim=readout_node_dim,
-                out_dim=config.readout_dim,
-                pooling_type=config.readout_type,
-            )
-
-        self.tail_mlp = self.__create_tail_MLP(self.config.num_outputs)
-
-    def __create_tail_MLP(self, num_outputs: int) -> MLP:
+    def __create_tail_MLP(self, num_tasks: int) -> MLP:
         return MLP(
-            input_dim=self.config.readout_dim,
-            hidden_layer_dims=[self.config.readout_dim] * (self.config.num_tail_layers - 1),
-            out_dim=num_outputs,
+            input_dim=self.config.graph_feature_extractor_config.readout_output_dim,
+            hidden_layer_dims=[self.config.graph_feature_extractor_config.readout_output_dim]
+            * (self.config.num_tail_layers - 1),
+            out_dim=num_tasks,
         )
 
     def to(self, device):
@@ -99,7 +48,7 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
         return super().to(device)
 
     def reinitialize_task_parameters(self, new_num_tasks: Optional[int] = None):
-        self.tail_mlp = self.__create_tail_MLP(new_num_tasks or self.config.num_outputs)
+        self.tail_mlp = self.__create_tail_MLP(new_num_tasks or self.config.num_tasks)
 
     def forward(self, batch: FSMolMultitaskBatch):
         """Predicts a float (unbounded), representing binding affinity for each input molecule.
@@ -110,33 +59,9 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
         Returns:
             List of per-molecule predictions of length `batch.num_graphs`.
         """
-        # Our inputs are numpy arrays, so we will need to move everything into torch.Tensor on
-        # the right device.
-        node_features = torch.tensor(batch.node_features, dtype=torch.float, device=self.device)
-        node_to_graph = torch.tensor(batch.node_to_graph, dtype=torch.long, device=self.device)
-
-        # ----- Initial (per-node) layers:
-        initial_node_features = self.init_node_proj(node_features)
-
-        # ----- Message passing layers:
-        all_node_representations = self.gnn(initial_node_features, batch.adjacency_lists)
-
-        # ----- Readout phase:
-        if self.config.readout_use_only_last_timestep:
-            readout_node_reprs = all_node_representations[-1]
-        else:
-            readout_node_reprs = torch.cat(all_node_representations, dim=-1)
-
-        mol_representations = self.readout(readout_node_reprs, node_to_graph, batch.num_graphs)
-
-        # ----- Tail phase
+        mol_representations = self.graph_feature_extractor(batch)
         mol_predictions = self.tail_mlp(mol_representations)
-
-        # If we use masking, we throw away all predictions that have nothing to do with
-        # our target task:
-        graph_to_task = torch.tensor(batch.sample_to_task_id, dtype=torch.long, device=self.device)
-        mol_predictions = torch.gather(mol_predictions, 1, graph_to_task.unsqueeze(-1))
-
+        mol_predictions = torch.gather(mol_predictions, 1, batch.sample_to_task_id.unsqueeze(-1))
         return mol_predictions
 
     def get_model_state(self) -> Dict[str, Any]:

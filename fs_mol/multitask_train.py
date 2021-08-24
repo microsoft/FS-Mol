@@ -15,8 +15,6 @@ from pyprojroot import here as project_root
 sys.path.insert(0, str(project_root()))
 
 from fs_mol.data import (
-    NUM_EDGE_TYPES,
-    NUM_NODE_FEATURES,
     DataFold,
     FSMolDataset,
     FSMolTaskSample,
@@ -39,8 +37,11 @@ from fs_mol.models.gnn_multitask import (
     GNNMultitaskModel,
     create_model,
 )
-from fs_mol.modules.gnn import add_gnn_model_arguments, make_gnn_config_from_args
-from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
+from fs_mol.modules.graph_feature_extractor import (
+    add_graph_feature_extractor_arguments,
+    make_graph_feature_extractor_config_from_args,
+)
+from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run
 from fs_mol.utils.metrics import (
     avg_metrics_list,
     BinaryEvalMetrics,
@@ -82,7 +83,7 @@ def validate_by_finetuning_on_tasks(
                 model_cls=GNNMultitaskModel,
                 task_sample=task_sample,
                 temp_out_folder=temp_out_folder,
-                batcher=get_multitask_inference_batcher(max_num_graphs=batch_size),
+                batcher=get_multitask_inference_batcher(max_num_graphs=batch_size, device=model_device),
                 learning_rate=learning_rate,
                 task_specific_learning_rate=task_specific_learning_rate,
                 metric_to_use=metric_to_use,
@@ -113,20 +114,7 @@ def validate_by_finetuning_on_tasks(
 
 
 def add_model_arguments(parser: argparse.ArgumentParser):
-    add_gnn_model_arguments(parser)
-    parser.add_argument(
-        "--readout_type",
-        type=str,
-        default="combined",
-        choices=["sum", "min", "max", "mean", "weighted_sum", "weighted_mean", "combined"],
-        help="Readout used to summarise atoms into a molecule",
-    )
-    parser.add_argument(
-        "--readout_use_all_states",
-        type=str2bool,
-        default=True,
-        help="Indicates if all intermediate GNN activations or only the final ones should be used when computing a graph-level representation.",
-    )
+    add_graph_feature_extractor_arguments(parser)
     parser.add_argument("--num_tail_layers", type=int, default=2)
 
 
@@ -134,12 +122,8 @@ def make_model_from_args(
     num_tasks: int, args: argparse.Namespace, device: Optional[torch.device] = None
 ):
     model_config = GNNMultitaskConfig(
+        graph_feature_extractor_config=make_graph_feature_extractor_config_from_args(args),
         num_tasks=num_tasks,
-        node_feature_dim=NUM_NODE_FEATURES,
-        gnn_config=make_gnn_config_from_args(args),
-        num_outputs=1,
-        readout_type=args.readout_type,
-        readout_use_only_last_timestep=not args.readout_use_all_states,
         num_tail_layers=args.num_tail_layers,
     )
     model = create_model(model_config, device=device)
@@ -248,6 +232,7 @@ def main():
             data_fold=DataFold.TRAIN,
             task_name_to_id=train_task_name_to_id,
             max_num_graphs=args.batch_size,
+            device=device,
         ),
         valid_fn=valid_fn,
         output_folder=out_dir,
