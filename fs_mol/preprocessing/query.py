@@ -1,7 +1,7 @@
 """
 Querying ChEMBL database for all information.
 
-Assays of interest are passed in a list/config.ini file.
+Assays of interest are passed in a .jsonl file, the default is set in config.ini.
 
 """
 
@@ -11,7 +11,6 @@ import os
 import sys
 from pathlib import Path
 from typing import Dict, Any
-from pathlib import Path
 import mysql.connector
 from mysql.connector import Error
 
@@ -31,7 +30,6 @@ from fs_mol.preprocessing.utils.queries import (
     PROTEIN_FIELDS,
     CELL_FIELDS,
 )
-from fs_mol.preprocessing.initial_query import run_initial_query
 
 logging.basicConfig(filename="querying.log", format="%(asctime)s %(message)s", filemode="w")
 
