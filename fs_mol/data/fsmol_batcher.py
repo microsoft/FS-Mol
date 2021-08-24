@@ -60,12 +60,12 @@ BatchLabelType = TypeVar("BatchLabelType")
 
 def fsmol_batch_finalizer(batch_data: Dict[str, Any]) -> FSMolBatch:
     """
-    Example of a Batch Finalizer. Makes a batch that has reached maximum size
-    in to a final batch object to be passed to a mini-batch requiring loop.
+    Default implementation of a batch finalizer. Converts a batch that has reached maximum size
+    into a final FSMolBatch object, which can then be consumed by e.g. a training loop.
 
     Args:
         batch_data: Dictionary containing batch data, initialised and populated
-        from MoleculeDatapoints by the FSMolBatcher.batch() method.
+            from MoleculeDatapoints by the FSMolBatcher.batch() method.
     """
     adjacency_lists = []
     for adj_lists in batch_data["adjacency_lists"]:
@@ -102,7 +102,7 @@ class FSMolBatcher(Generic[BatchFeatureType, BatchLabelType]):
         satisfied.
 
         Args:
-            max_num_rgaphs (Optional): If set, the maximum number of graphs added to a batch.
+            max_num_graphs (Optional): If set, the maximum number of graphs added to a batch.
             max_num_nodes (Optional): If set, maximum number of nodes added to a batch;
                 the batch method checks that adding another graph will not cause overflow and
                 creates a new batch if that is the case
