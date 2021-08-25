@@ -210,7 +210,6 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
                 )
             setattr(config, key, val)
 
-
         model = create_model(config, device)
 
         return model
