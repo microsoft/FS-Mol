@@ -10,7 +10,6 @@ from glob import glob
 from typing import Tuple, List, Optional, Callable, Dict, Iterable, Union
 
 from pandas.core.base import DataError
-from azureml.core import Run
 
 
 TRAIN_SIZES_TO_COMPARE = [16, 32, 64, 128, 256]
@@ -458,21 +457,6 @@ def plot_all_assays(
             continue
 
 
-def get_run_csvs_from_mountpath(mount_path: str, run: Run) -> List[str]:
-    # designed to be used when aml experiment storage is mounted.
-    if os.path.isdir(mount_path):
-        print(f"Using mount path {mount_path}.")
-        # address files using aml syntax
-        run_mnt_dir = os.path.join(mount_path, f"dcid.{run._run_id}")
-        try:
-            csv_files = glob(os.path.join(run_mnt_dir, f"outputs/*.csv"))
-        except Exception as e:
-            print(f"Run {run._run_id} directory not found in mount {mount_path}." f" {e}")
-        return csv_files
-
-    raise ValueError(f"{mount_path} is not a directory, cannot read CSVs from here")
-
-
 def load_model_results(
     file: str,
     model_label: str,
@@ -599,7 +583,7 @@ def plot_task_performances_by_id(
     plt.rcParams.update({"font.size": 14, "text.usetex": True})
 
     frac_positives = merged_df["fraction_positive_train"]
-    _, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 6))
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 6))
     ax.flatten()
 
     frac_pos_to_auprc_ax = ax[0]
@@ -676,6 +660,9 @@ def plot_task_performances_by_id(
     assay_id_to_improv_ax.set_xticklabels(merged_df["TASK_ID"][0:-1:4], Rotation=90)
 
     assay_id_to_improv_ax.set_xticks(merged_df["TASK_ID"][0:-1:4])
+
+    plt.show(fig)
+    plt.close(fig)
 
     if plot_output_dir is not None:
         plt.savefig(
@@ -878,11 +865,13 @@ def box_plot(
     for i, box in enumerate(bp_dict.lines["medians"]):
         box.set_color("black")
 
-        if plot_output_dir is not None:
-            plt.savefig(
-                os.path.join(plot_output_dir, f"comparison_boxplot_{support_set_size}.png"),
-                bbox_inches="tight",
-            )
+    plt.show(box)
+
+    if plot_output_dir is not None:
+        plt.savefig(
+            os.path.join(plot_output_dir, f"comparison_boxplot_{support_set_size}.png"),
+            bbox_inches="tight",
+        )
 
 
 def get_aggregates_across_sizes(
@@ -1022,6 +1011,9 @@ def plot_by_size(
     ax.set_xticks(TRAIN_SIZES_TO_COMPARE)
     ax.set_xticklabels(TRAIN_SIZES_TO_COMPARE)
     plt.grid(True, color="grey", alpha=0.3, linestyle="--")
+
+    plt.show(fig)
+    plt.close(fig)
 
     if plot_output_dir is not None:
         plt.savefig(os.path.join(plot_output_dir, f"comparison_plot.png"), bbox_inches="tight")
