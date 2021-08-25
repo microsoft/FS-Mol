@@ -50,7 +50,6 @@ class GraphFeatureExtractor(nn.Module):
             out_dim=embedding_dim,
             num_heads=12,
             head_dim=64,
-            use_task_specific_scores=False,
         )
 
     @property
