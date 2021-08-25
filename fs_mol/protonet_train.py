@@ -70,7 +70,7 @@ def parse_command_line():
         default=50,
         help="Number of training steps between model validations.",
     )
-    parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
+    parser.add_argument("--lr", type=float, default=0.0001, help="Learning rate")
     parser.add_argument(
         "--clip-value", type=float, default=1.0, help="Gradient norm clipping value"
     )
