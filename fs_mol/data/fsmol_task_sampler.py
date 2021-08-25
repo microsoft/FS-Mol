@@ -11,9 +11,14 @@ from fs_mol.data.fsmol_task import FSMolTask, FSMolTaskSample
 logger = logging.getLogger(__name__)
 
 
-class DatasetTooSmallException(Exception):
+class SamplingException(Exception):
     def __init__(
-        self, task_name: str, num_samples: int, num_train: int, num_valid: int, num_test: int
+        self,
+        task_name: str,
+        num_samples: int,
+        num_train: Optional[int],
+        num_valid: Optional[int],
+        num_test: Optional[int],
     ):
         super().__init__()
         self._task_name = task_name
@@ -21,6 +26,13 @@ class DatasetTooSmallException(Exception):
         self._num_train = num_train
         self._num_valid = num_valid
         self._num_test = num_test
+
+
+class DatasetTooSmallException(SamplingException):
+    def __init__(
+        self, task_name: str, num_samples: int, num_train: int, num_valid: int, num_test: int
+    ):
+        super().__init__(task_name, num_samples, num_train, num_valid, num_test)
 
     def __str__(self):
         return (
@@ -31,7 +43,7 @@ class DatasetTooSmallException(Exception):
         )
 
 
-class DatasetClassTooSmallException(Exception):
+class DatasetClassTooSmallException(SamplingException):
     def __init__(
         self,
         task_name: str,
@@ -42,12 +54,7 @@ class DatasetClassTooSmallException(Exception):
         label_class: bool,
         num_class_samples: int,
     ):
-        super().__init__()
-        self._task_name = task_name
-        self._num_samples = num_samples
-        self._num_train = num_train
-        self._num_valid = num_valid
-        self._num_test = num_test
+        super().__init__(task_name, num_samples, num_train, num_valid, num_test)
         self._label_class = label_class
         self._num_class_samples = num_class_samples
 
@@ -60,7 +67,7 @@ class DatasetClassTooSmallException(Exception):
         )
 
 
-class FoldTooSmallException(Exception):
+class FoldTooSmallException(SamplingException):
     def __init__(
         self,
         task_name: str,
@@ -70,13 +77,8 @@ class FoldTooSmallException(Exception):
         num_valid: Optional[int] = None,
         num_test: Optional[int] = None,
     ):
-        super().__init__()
-        self._task_name = task_name
-        self._num_samples = num_samples
+        super().__init__(task_name, num_samples, num_train, num_valid, num_test)
         self._fold_name = fold_name
-        self._num_train = num_train
-        self._num_valid = num_valid
-        self._num_test = num_test
 
     def __str__(self):
         return (
