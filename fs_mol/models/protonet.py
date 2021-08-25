@@ -119,17 +119,29 @@ class PrototypicalNetwork(nn.Module):
             query_features.append(self.graph_feature_extractor(input_batch.query_features))
         if "ecfp" in self.config.used_features:
             support_features.append(
-                torch.tensor(input_batch.support_features.fingerprints, device=self.device, dtype=torch.float32)
+                torch.tensor(
+                    input_batch.support_features.fingerprints,
+                    device=self.device,
+                    dtype=torch.float32,
+                )
             )
             query_features.append(
-                torch.tensor(input_batch.query_features.fingerprints, device=self.device, dtype=torch.float32)
+                torch.tensor(
+                    input_batch.query_features.fingerprints, device=self.device, dtype=torch.float32
+                )
             )
         if "pc-descs" in self.config.used_features:
             support_features.append(
-                torch.tensor(input_batch.support_features.descriptors, device=self.device, dtype=torch.float32)
+                torch.tensor(
+                    input_batch.support_features.descriptors,
+                    device=self.device,
+                    dtype=torch.float32,
+                )
             )
             query_features.append(
-                torch.tensor(input_batch.query_features.descriptors, device=self.device, dtype=torch.float32)
+                torch.tensor(
+                    input_batch.query_features.descriptors, device=self.device, dtype=torch.float32
+                )
             )
 
         support_features_flat = torch.cat(support_features, dim=1)
