@@ -2,7 +2,17 @@
 
 This repository contains code and data for FS-Mol: A Few-Shot Learning Dataset of Molecules. 
 
-## Installation
+# Installation
+
+1. Clone or download this repository
+2. Install dependencies
+   ```
+   cd FS-Mol
+
+   conda env create -f environment.yml
+   conda activate fsmol
+
+   ```
 
 ## FSMolDataset
 The `FSMolDataset` provides access to the train/valid/test tasks of the few-shot dataset. An instance is created from the data directory by `FSMolDataset.from_directory(/path/to/dataset)` and access to the iterable over task files is given by `FSMolDataset.get_task_reading_iterable()`. This allows specification of a callable to allow trasnformations while reading a list of task files, and permits multithreaded data loading. The default implementation returns an iterable over `FSMolTask` objects, which each contain an entire single task's set of molecules and labels. These are held by the `MoleculeDatapoint` objects. More details and examples of how to use `FSMolDataset` are available in `fs_mol/notebooks/dataset.ipynb`.
