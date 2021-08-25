@@ -73,7 +73,13 @@ We provide pre-trained models for `GNN-MAML`, `GNN-MT` and `PN`.
 
 | Model Name | Description | Checkpoint File |
 |------------|-------------|-----------------|
-| MAML       |             |                 |
+| GNN-MAML   |             |                 |
+|------------|-------------|-----------------|
+| GNN-MT     |             |                 |
+|------------|-------------|-----------------|
+| PN         |             |                 |
+|------------|-------------|-----------------|
+
 
 
 ## Specifying, Training and Evaluating New Model Implementations
