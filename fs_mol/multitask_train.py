@@ -281,7 +281,7 @@ def main():
         aml_run=aml_run,
     )
 
-    train_loop(
+    _, best_model_state = train_loop(
         model=model,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
@@ -298,6 +298,8 @@ def main():
         patience=args.patience,
         aml_run=aml_run,
     )
+
+    torch.save(best_model_state, os.path.join(out_dir, "best_model.pt"))
 
 
 if __name__ == "__main__":

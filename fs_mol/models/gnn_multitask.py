@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 
 from fs_mol.data.multitask import FSMolMultitaskBatch
-from fs_mol.models.abstract_torch_fsmol_model import AbstractTorchFSMolModel
+from fs_mol.models.abstract_torch_fsmol_model import AbstractTorchFSMolModel, ModelStateType
 from fs_mol.modules.gnn import GNN, GNNConfig
 from fs_mol.modules.graph_readout import (
     GraphReadout,
@@ -148,91 +148,25 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
     def is_param_task_specific(self, param_name: str) -> bool:
         return param_name.startswith("tail_mlp.")
 
-    def load_model_weights(
+    def load_model_state(
         self,
-        path: str,
+        model_state: ModelStateType,
         load_task_specific_weights: bool,
         quiet: bool = False,
-        device: Optional[torch.device] = None,
     ) -> None:
-        """Load model weights from a saved checkpoint."""
-        load_model(
-            path,
-            model=self,
-            reinit_task_specific_weights=not load_task_specific_weights,
-            quiet=quiet,
-            device=device,
-        )
-
-    @classmethod
-    def build_from_model_file(
-        cls,
-        model_file: str,
-        config_overrides: Dict[str, Any] = {},
-        quiet: bool = False,
-        device: Optional[torch.device] = None,
-    ) -> GNNMultitaskModel:
-        """Build the model architecture based on a saved checkpoint."""
-        model, _ = load_model(
-            model_file,
-            config_overrides=config_overrides,
-            load_model_weights=False,
-            quiet=quiet,
-            device=device,
-        )
-
-        return model
-
-
-def create_model(
-    config: GNNMultitaskConfig, device: Optional[torch.device] = None
-) -> GNNMultitaskModel:
-    model = GNNMultitaskModel(config)
-    if device is not None:
-        model = model.to(device)
-    return model
-
-
-def load_model(
-    model_file: str,
-    model: Optional[GNNMultitaskModel] = None,
-    optimizer: Optional[torch.optim.Optimizer] = None,
-    config_overrides: Dict[str, Any] = {},
-    load_model_weights: bool = True,
-    reinit_task_specific_weights: bool = True,
-    quiet: bool = False,
-    device: Optional[torch.device] = None,
-) -> Tuple[GNNMultitaskModel, Optional[torch.optim.Optimizer]]:
-    """Load weights from file, either into an existing model, or a fresh model
-    created following the loaded configuration."""
-    checkpoint = torch.load(model_file, map_location=device)
-    config = checkpoint["model_config"]
-
-    if not quiet:
-        logger.info(f" Loading model configuration from {model_file}.")
-    if model is None:
-        for key, val in config_overrides.items():
-            if not quiet:
-                logger.info(
-                    f"  I: Overriding model config parameter {key} from {getattr(config, key)} to {val}!"
-                )
-            setattr(config, key, val)
-        model = create_model(config, device)
-
-    if load_model_weights:
         # Filter down to parts of the model we want to re-use:
         params_to_load = {
             param_name: param_value
-            for param_name, param_value in checkpoint["model_state_dict"].items()
+            for param_name, param_value in model_state["model_state_dict"].items()
             if (
-                not model.is_param_task_specific(param_name)
-                or (model.is_param_task_specific(param_name) and not reinit_task_specific_weights)
+                not self.is_param_task_specific(param_name)
+                or (self.is_param_task_specific(param_name) and load_task_specific_weights)
             )
         }
 
-        missing, unexpected = model.load_state_dict(params_to_load, strict=False)
+        missing, unexpected = self.load_state_dict(params_to_load, strict=False)
         missing = [
-            param_name for param_name in missing if not model.is_param_task_specific(param_name)
+            param_name for param_name in missing if not self.is_param_task_specific(param_name)
         ]
 
         if len(missing) > 0:
@@ -246,14 +180,46 @@ def load_model(
                 logger.error(f"    {u}")
             raise ValueError(f"Trying to load model, but found unexpected parameters!")
 
-        if reinit_task_specific_weights:
+        if not load_task_specific_weights:
             if not quiet:
                 logger.info(f"  Re-initialising task-specific parameters.")
-            model.reinitialize_task_parameters()
+            self.reinitialize_task_parameters()
 
-        model = model.to(model.device)
+        # This should be a no-op, but may be required after a re-init:
+        self.to(self.device)
 
-        if optimizer is not None:
-            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    @classmethod
+    def build_from_model_file(
+        cls,
+        model_file: str,
+        config_overrides: Dict[str, Any] = {},
+        quiet: bool = False,
+        device: Optional[torch.device] = None,
+    ) -> GNNMultitaskModel:
+        """Load weights from file, either into an existing model, or a fresh model
+        created following the loaded configuration."""
+        checkpoint = torch.load(model_file, map_location=device)
+        config = checkpoint["model_config"]
 
-    return model, optimizer
+        if not quiet:
+            logger.info(f" Loading model configuration from {model_file}.")
+        for key, val in config_overrides.items():
+            if not quiet:
+                logger.info(
+                    f"  I: Overriding model config parameter {key} from {getattr(config, key)} to {val}!"
+                )
+            setattr(config, key, val)
+
+
+        model = create_model(config, device)
+
+        return model
+
+
+def create_model(
+    config: GNNMultitaskConfig, device: Optional[torch.device] = None
+) -> GNNMultitaskModel:
+    model = GNNMultitaskModel(config)
+    if device is not None:
+        model = model.to(device)
+    return model
