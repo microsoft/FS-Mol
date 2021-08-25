@@ -160,13 +160,33 @@ def eval_model(
     dataset: FSMolDataset,
     train_set_sample_sizes: List[int],
     out_dir: Optional[str] = None,
-    num_samples: int = 5,
+    num_samples: int = 10,
     valid_size_or_ratio: Union[int, float] = 0.0,
     test_size_or_ratio: Optional[Union[int, float, Tuple[int, int]]] = None,
     fold: DataFold = DataFold.TEST,
     task_reader_fn: Optional[Callable[[List[RichPath], int], Iterable[FSMolTask]]] = None,
     seed: int = 0,
 ) -> Dict[str, List[FSMolTaskSampleEvalResults]]:
+    """Evaluate a model on the FSMolDataset passed.
+
+    Args:
+        test_model_fn: A callable directly evaluating the model of interest on a single task
+            sample in the form of an FSMolTaskSample. The test_model_fn should act on the task
+            sample with the model, using a temporary output folder and seed. All other required
+            variables should be defined in the same context as the callable. The function should
+            return a BinaryEvalMetrics object from the task.
+        dataset: An FSMolDataset with paths to the data to be evaluated supplied.
+        train_set_samples_sizes: List[int], a list of the support set sizes at which to evaluate,
+            this is the train_samples size in a TaskSample.
+        out_dir: final output directory for evaluation results.
+        num_samples: number of repeated draws from the task's data on which to evaluate the model.
+        valid_size_or_ratio: size of validation set in a TaskSample.
+        test_size_or_ratio: size of the test set in a TaskSample.
+        fold: the fold of FSMolDataset on which to perform evaluation, typically will be the test fold.
+        task_reader_fn: Callable allowing additional transformations on the data prior to its batching
+            and passing through a model.
+        seed: an base external seed value. Repeated runs vary from this seed.
+    """
     task_reading_kwargs = {"task_reader_fn": task_reader_fn} if task_reader_fn is not None else {}
     task_to_results: Dict[str, List[FSMolTaskSampleEvalResults]] = {}
 
