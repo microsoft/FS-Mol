@@ -64,6 +64,8 @@ These baseline methods can be run on the FS-Mol dataset as follows:
 
 ### kNNs and Random Forests -- Single Task Baselines
 
+Our kNN and RF baselines are obtained by permitting grid-search over a industry-standard parameter set, detailed in the script `baseline_test.py`.
+
 The baseline single-task evaluation can be run as follows, with a choice of kNN or randomForest model:
 
 ```bash
@@ -72,6 +74,8 @@ python fs_mol/baseline_test.py /path/to/data --model {kNN, randomForest}
 
 ### Molecule Attention Transformer
 
+The Molecule Attention Transformer (MAT) [paper](https://arxiv.org/abs/2002.08264v1), [code](https://github.com/lucidrains/molecule-attention-transformer). 
+
 The Molecule Attention Transformer can be evaluated as:
 
 ```bash
@@ -79,6 +83,8 @@ python fs_mol/mat_test.py /path/to/pretrained-mat /path/to/data
 ```
 
 ### GNN-MAML pre-training and evaluation
+
+The GNN-MAML model consists of a GNN operating on the molecular graph representations of the dataset. The model consists of a $8$-layer GNN with node-embedding dimension $128$. The GNN uses "Edge-MLP" message passing [ref](). The model was trained with a support set size of $16$ according to the MAML procedure [Finn 2017](http://proceedings.mlr.press/v70/finn17a/finn17a.pdf). The hyperparameters used in the model checkpoint are default settings of `maml_train.py`.
 
 The current defaults were used to train the final versions of GNN-MAML available here. 
 
@@ -94,6 +100,8 @@ python fs_mol/maml_test.py /path/to/data --trained_model /path/to/gnn-maml-check
 
 ### GNN-MT pre-training and evaluation
 
+The GNN-MT model consists of a GNN operating on the molecular graph representations of the dataset. The model consists of a $10$-layer GNN with node-embedding dimension $128$. The model uses principal neighbourhood aggregation (PNA) message passing. The hyperparameters used in the model checkpoint are default settings of `multitask_train.py`. This method has similarities to the approach taken for the task-only training contained within [Hu 2019](https://arxiv.org/abs/1905.12265v1)
+
 ```bash
 python fs_mol/multitask_train.py /path/to/data 
 ```
@@ -104,7 +112,9 @@ Evaluation is run as:
 python fs_mol/multitask_test.py /path/to/gnn-mt-checkpoint /path/to/data
 ```
 
-### Prototypical Networks (PN) pre-training and evaluation
+### Prototypical Networks (PN) pre-training and evaluatio
+
+The prototypical networks method [Snell 2017](https://proceedings.neurips.cc/paper/2017/file/cb8da6767461f2812ae4290eac7cbc42-Paper.pdf) extracts representations of support set datapoints and uses these to classify positive and negative examples. We here used the Mahalonobis distance as a metric for query point distance to class prototypes. 
 
 ```bash
 python fs_mol/protonet_train.py /path/to/data 
@@ -120,11 +130,11 @@ python fs_mol/protonet_test.py /path/to/pn-checkpoint /path/to/data
 
 We provide pre-trained models for `GNN-MAML`, `GNN-MT` and `PN`.
 
-| Model Name | Description | Checkpoint File |
-|------------|-------------|-----------------|
-| GNN-MAML   |             |                 |
-| GNN-MT     |             |                 |
-| PN         |             |                 |
+| Model Name | Description                                                | Checkpoint File |
+|------------|------------------------------------------------------------|-----------------|
+| GNN-MAML   | Support set size 16. 8-layer GNN. Edge MLP message passing.|                 |
+| GNN-MT     | 10-layer GNN. PNA message passing                          |                 |
+| PN         |                                                            |                 |
 
 
 ## Specifying, Training and Evaluating New Model Implementations
