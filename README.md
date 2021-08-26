@@ -1,8 +1,8 @@
 # FS-Mol: A Few-Shot Learning Dataset of Molecules
 
-This repository contains code and data for FS-Mol: A Few-Shot Learning Dataset of Molecules. 
+This repository contains data and code for FS-Mol: A Few-Shot Learning Dataset of Molecules.
 
-# Installation
+## Installation
 
 1. Clone or download this repository
 2. Install dependencies
@@ -14,10 +14,47 @@ This repository contains code and data for FS-Mol: A Few-Shot Learning Dataset o
 
    ```
 
-## FSMolDataset
-The `FSMolDataset` provides access to the train/valid/test tasks of the few-shot dataset. An instance is created from the data directory by `FSMolDataset.from_directory(/path/to/dataset)` and access to the iterable over task files is given by `FSMolDataset.get_task_reading_iterable()`. This allows specification of a callable to allow trasnformations while reading a list of task files, and permits multithreaded data loading. The default implementation returns an iterable over `FSMolTask` objects, which each contain an entire single task's set of molecules and labels. These are held by the `MoleculeDatapoint` objects. More details and examples of how to use `FSMolDataset` are available in `fs_mol/notebooks/dataset.ipynb`.
+## Data
 
-## Available Model Implementations
+The actual dataset is stored in `dataset/`, split into `train`, `valid` and `test` folders.
+Tasks are stored as individual compressed [JSONLines](https://jsonlines.org/) files, with each line corresponding to the information to a single datapoint for the task.
+Each datapoint is stored as a JSON dictionary, following a fixed structure:
+```json
+{
+    "SMILES": "SMILES_STRING",
+    "Property": "ACTIVITY BOOL LABEL",
+    "Assay_ID": "CHEMBL ID",
+    "RegressionProperty": "ACTIVITY VALUE",
+    "LogRegressionProperty": "LOG ACTIVITY VALUE",
+    "Relation": "ASSUMED RELATION OF MEASURED VALUE TO TRUE VALUE",
+    "AssayType": "TYPE OF ASSAY",
+    "fingerprints": [...],
+    "descriptors": [...],
+    "graph": {
+        "adjacency_lists": [
+           [... SINGLE BONDS AS PAIRS ...],
+           [... DOUBLE BONDS AS PAIRS ...],
+           [... TRIPLE BONDS AS PAIRS ...]
+        ],
+        "node_types": [...ATOM TYPES...],
+        "node_features": [...NODE FEATURES...],
+    }
+}
+```
+
+### FSMolDataset
+The `fs_mol.data.FSMolDataset` class provides programmatic access in Python to the train/valid/test tasks of the few-shot dataset.
+An instance is created from the data directory by `FSMolDataset.from_directory(/path/to/dataset)`.
+More details and examples of how to use `FSMolDataset` are available in `fs_mol/notebooks/dataset.ipynb`.
+
+## Evaluating a new Model
+
+We have provided an implementation of the FS-Mol evaluation methodology in `fs_mol.utils.eval_utils.eval_model()`.
+This is a framework-agnostic python method, and we demonstrate how to use it for evaluating a new model in detail in `notebooks/evaluation.ipynb`.
+
+Note that our baseline test scripts (`fs_mol/baseline_test.py`, `fs_mol/maml_test.py`, `fs_mol/mat_test`, `fs_mol/multitask_test.py` and `fs_mol/protonet_test.py`) use this method as well and can serve as examoles on how to integrate per-task fine-tuning in TensorFlow (`maml_test.py`), fine-tuning in PyTorch (`mat_test.py`) and single-task training for scikit-learn models (`baseline_test.py`).
+
+## Baseline Model Implementations
 
 We provide implementations for three key few-shot learning methods: Multitask learning, Model-Agnostic Meta-Learning, and Prototypical Networks, as well as evaluation on the Single-Task baselines and the Molecule Attention Transformer (MAT) [paper](https://arxiv.org/abs/2002.08264v1), [code](https://github.com/lucidrains/molecule-attention-transformer). 
 
@@ -31,7 +68,7 @@ The baseline single-task evaluation can be run as follows, with a choice of kNN 
 python fs_mol/baseline_test.py /path/to/data --model {kNN, randomForest}
 ```
 
-### MAT -- Single Task Methods
+### Molecule Attention Transformer
 
 The Molecule Attention Transformer can be evaluated as:
 
@@ -84,12 +121,8 @@ We provide pre-trained models for `GNN-MAML`, `GNN-MT` and `PN`.
 | Model Name | Description | Checkpoint File |
 |------------|-------------|-----------------|
 | GNN-MAML   |             |                 |
-|------------|-------------|-----------------|
 | GNN-MT     |             |                 |
-|------------|-------------|-----------------|
 | PN         |             |                 |
-|------------|-------------|-----------------|
-
 
 
 ## Specifying, Training and Evaluating New Model Implementations
@@ -97,10 +130,6 @@ We provide pre-trained models for `GNN-MAML`, `GNN-MT` and `PN`.
 Flexible definition of few-shot models and single task models is defined as demonstrated in the range of train and test scripts in `fs_mol`. 
 
 We give a detailed example of how to use the abstract class `AbstractTorchFSMolModel` in `notebooks/integrating_torch_models.ipynb` to integrate a new general PyTorch model, and note that the evaluation procedure described below is demonstrated on `sklearn` models in `fs_mol/baseline_test.py` and on a Tensorflow-based GNN model in `fs_mol/maml_test.py`.
-
-### Running the benchmark
-
-We note that the benchmark evaluation method, in particular the use of `eval_model` in conjunction with the `FSMolDataset`, is designed to be general and applicable to a wide range of models regardless of preferred implementation library. `notebooks/evaluation.ipynb` describes how to integrate the benchmarking procedure and run for direct comparison on the FS-Mol benchmark tasks.
 
 ## Contributing
 
