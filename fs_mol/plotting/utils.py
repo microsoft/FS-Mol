@@ -948,10 +948,14 @@ def plot_by_size(
 
     """
 
+    markers = ["s", "P", "*", "X", "^", "o", "D", "p"]
+    colors = [200, 64, 160, 10, 32, 128]
+    color_set = [plt.get_cmap("plasma").colors[x] for x in colors]
+
     def get_style(cls, model_name):
         if cls == "all":
             label = model_name
-            lw = 1.0
+            lw = 1.3
             ls = "-"
             alpha = 1.0
         else:
@@ -984,8 +988,8 @@ def plot_by_size(
 
     fig, ax = plt.subplots(figsize=(10, 10))
 
-    for i, model_name in enumerate(model_summaries.keys()):
-        color = plt.get_cmap("plasma").colors[i * 50 + 50]
+    for j, model_name in enumerate(model_summaries.keys()):
+        color = plt.get_cmap("plasma").colors[j * 50 + 40]
 
         a = vals[model_name]
         v = stds[model_name]
@@ -998,10 +1002,11 @@ def plot_by_size(
                 v.values[i],
                 label=label,
                 linestyle=ls,
-                marker="o",
+                marker=markers[j],
                 ms=8,
-                color=color,
+                color=color_set[j],
                 alpha=alpha,
+                markeredgecolor="black",
                 linewidth=lw,
             )
 
