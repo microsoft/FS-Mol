@@ -35,9 +35,9 @@ from fs_mol.preprocessing.utils.save_utils import (
     save_assay_data,
     save_metadata,
 )
+from fs_mol.utils.logging import set_up_logging
 
-
-logging.basicConfig(filename="featurisation.log", format="%(asctime)s %(message)s", filemode="w")
+set_up_logging("featurisation.log")
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +55,8 @@ CHEMBL_CSV_FORMAT = {
 
 
 def get_filenames(input_dir: str) -> List[str]:
-
-    return glob(input_dir + "CHEMBL*.csv", recursive=True)
+    logger.info(f"Reading files from {input_dir}")
+    return glob(os.path.join(input_dir, "CHEMBL*.csv"), recursive=True)
 
 
 def filter_assays(summary: str, args) -> List[str]:
@@ -91,7 +91,6 @@ def filter_assays(summary: str, args) -> List[str]:
 
 
 def run(args):
-
     # get all the relevant raw datafiles to process
     filenames = get_filenames(args.INPUT_DIR)
 

@@ -427,11 +427,11 @@ def process_all_assays(
 
 
 def get_files_to_process(input_dir: str, output_dir: str) -> List[str]:
-    all_raw_files = glob(input_dir + "CHEMBL*.csv", recursive=True)
+    all_raw_files = glob(os.path.join(input_dir, "CHEMBL*.csv"), recursive=True)
     all_done_assays = set(
         [
             os.path.basename(x).split(".")[0]
-            for x in glob(output_dir + "/CHEMBL*.csv", recursive=True)
+            for x in glob(os.path.join(output_dir, "CHEMBL*.csv"), recursive=True)
         ]
     )
     files_to_process = []
