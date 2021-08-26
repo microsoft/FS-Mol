@@ -193,7 +193,7 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
         config_overrides: Dict[str, Any] = {},
         quiet: bool = False,
         device: Optional[torch.device] = None,
-    ) -> GNNMultitaskModel:
+    ) -> "GNNMultitaskModel":
         """Load weights from file, either into an existing model, or a fresh model
         created following the loaded configuration."""
         checkpoint = torch.load(model_file, map_location=device)
