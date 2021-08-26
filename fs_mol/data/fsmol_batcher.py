@@ -21,6 +21,26 @@ from fs_mol.data.fsmol_task import MoleculeDatapoint
 
 @dataclass(frozen=True)
 class FSMolBatch:
+    """General data structure for holding information about graph-featurized molecules in a
+    batch. Note that batches of unequally sized graphs are formed from multiple graphs by
+    combining into one large disconnected graph, where each new potential addition is tested
+    to check that it will not exceed the allowed number of nodes or edges per batch.
+
+    Args:
+        num_graphs: total number of graphs in the batch.
+        num_nodes: total number of nodes in the batch, V. Should be limited to a maximum.
+        num_edges: total number of edges in batch; one batch contains multiple disconnected
+            graphs where edges and nodes are renumbered accordingly.
+        node_features: each node has a vector representation dependent on featurisation,
+            e.g. atom type, charge, valency. [V, atom_features] float, where V is number of nodes
+        adjacency_lists: Lists of all edges in the batch, for each edge type.
+            list, len num_edge_types, elements [num edges, 2] int tensors
+        edge_features: edges may also have vector representation carrying information specific
+            to the edge. list, len num_edge_types, elements [num edges, ED] float tensors
+        node_to_graph: Vector of indices of length V. Mapping from nodes to the graphs
+            to which they belong.
+    """
+
     num_graphs: int
     num_nodes: int
     num_edges: int
@@ -39,6 +59,14 @@ BatchLabelType = TypeVar("BatchLabelType")
 
 
 def fsmol_batch_finalizer(batch_data: Dict[str, Any]) -> FSMolBatch:
+    """
+    Default implementation of a batch finalizer. Converts a batch that has reached maximum size
+    into a final FSMolBatch object, which can then be consumed by e.g. a training loop.
+
+    Args:
+        batch_data: Dictionary containing batch data, initialised and populated
+            from "MoleculeDatapoints" by the "FSMolBatcher.batch()" method.
+    """
     adjacency_lists = []
     for adj_lists in batch_data["adjacency_lists"]:
         if len(adj_lists) > 0:
@@ -67,6 +95,26 @@ def fsmol_batch_finalizer(batch_data: Dict[str, Any]) -> FSMolBatch:
 
 
 class FSMolBatcher(Generic[BatchFeatureType, BatchLabelType]):
+    """Create a batcher object. Acts on an iterable over MoleculeDatapoints to create
+    suitably sized mini-batches. The batch method checks that adding another graph
+    will not cause overflow of maximum number of total edges, nodes or graphs,
+    and creates a new batch if that is the case.
+
+    Sampling can only fail if a fixed size is requested for any of the folds that cannot be
+    satisfied.
+
+    Args:
+        max_num_graphs (Optional): If set, the maximum number of graphs added to a batch.
+        max_num_nodes (Optional): If set, maximum number of nodes added to a batch.
+        max_num_edges (Optional): If set, maximum permitted edges in a batch.
+        init_callback (Optional): Callable that can be passed to operate on the initial batch to,
+            for example, add additional members to a batch data dictionary before building.
+        per_datapoint_callback (Optional): Callable that permits a user to operate on a datapoint and batch
+            prior to finalisation to perform additional operations. e.g. compute extra features.
+        finalizer_callback (Optional): Callable to allow the final batch to be returned in a specific
+            form, e.g. as instance of FSMolBatch.
+    """
+
     def __init__(
         self,
         max_num_graphs: Optional[int] = None,
