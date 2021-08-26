@@ -2,12 +2,13 @@
 Utils for reading database config and list of assays to be queried from ChEMBL
 """
 import json
+import os
 from configparser import ConfigParser
-from typing import Dict, List
+from typing import Dict, List, Optional
 import pandas as pd
 
 
-def read_db_config(filename: str = "config.ini", section: str = "mysql") -> Dict[str, str]:
+def read_db_config(filename: Optional[str] = None, section: str = "mysql") -> Dict[str, str]:
     """
     Read database configuration file and return a dictionary object.
     Parameters:
@@ -16,8 +17,12 @@ def read_db_config(filename: str = "config.ini", section: str = "mysql") -> Dict
     Returns:
       (dict) a dictionary of database parameters
     """
+    if filename is None:
+        filename = os.path.join(os.path.dirname(__file__), "config.ini")
+
     # create parser and read ini configuration file
     parser = ConfigParser()
+    print(f"Reading config from {filename}")
     parser.read(filename)
 
     # get section, default to mysql

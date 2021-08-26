@@ -12,7 +12,7 @@ from typing import Optional, Tuple, Callable
 from rdkit import Chem
 from rdkit.Chem.Descriptors import MolWt
 
-from preprocessing.utils.standardizer import Standardizer
+from fs_mol.preprocessing.utils.standardizer import Standardizer
 
 standard_unit_set = {"nM", "%", "uM"}
 
@@ -148,17 +148,21 @@ def autothreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:
         # (this means there has been more a HTS and most measurements were
         # of obviously bad molecules. Permit > 50% as sign of some activity)
         median = df["standard_value"].median()
+        threshold = median
         buffer = df["standard_value"].std() / 10
         if not 50.0 <= median:
-            median = 50.0
+            threshold = 50.0
 
         df["activity_string"] = df.apply(
-            inhibition_threshold, args=(median,), buffer=buffer, axis=1
+            inhibition_threshold, args=(threshold,), buffer=buffer, axis=1
         )
     else:
+        threshold_limits = (5, 7)
         # get median
         median = df["log_standard_value"].median()
+        threshold = median
         buffer = df["log_standard_value"].std() / 10
+
         # use as a threshold provided it is in a sensible
         # range. This was chosen as pKI 4-6 in general, 5-7 for enzymes
         if "protein_class_desc" in df.columns:
@@ -170,11 +174,15 @@ def autothreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:
             threshold_limits = (4, 6)
 
         if median < threshold_limits[0] or median > threshold_limits[1]:
-            median = 5.0
+            threshold = 5.0
+        else:
+            threshold = median
 
-        df["activity_string"] = df.apply(activity_threshold, args=(median,), buffer=buffer, axis=1)
+        df["activity_string"] = df.apply(
+            activity_threshold, args=(threshold,), buffer=buffer, axis=1
+        )
 
-    return df, median
+    return df, threshold
 
 
 def fixedthreshold(x: pd.Series) -> Tuple[pd.DataFrame, float]:

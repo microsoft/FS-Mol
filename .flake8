@@ -19,3 +19,5 @@ ignore =
     F541
     # E402: Module level import not at top of file
     E402
+    # F841: Local variable is assigned to but never used.
+    F841

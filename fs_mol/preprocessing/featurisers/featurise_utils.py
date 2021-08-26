@@ -1,9 +1,11 @@
 import os
+import sys
 import csv
 import argparse
 import logging
 import functools
 import numpy as np
+from pathlib import Path
 from typing import List, Dict, Any, Iterable, Optional, Callable
 
 from dpu_utils.utils import RichPath
@@ -20,9 +22,13 @@ from rdkit.Chem.QED import qed
 from rdkit.Chem.Crippen import MolLogP
 from rdkit.Chem.Descriptors import ExactMolWt, BertzCT
 
-from preprocessing.featurisers.featurised_data import FeaturisedData
-from preprocessing.featurisers.featurisers import AtomFeatureExtractor
-from preprocessing.utils.sequential_worker_pool import get_worker_pool
+from pyreporoot import project_root
+
+sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
+
+from fs_mol.preprocessing.featurisers.featurised_data import FeaturisedData
+from fs_mol.preprocessing.featurisers.featurisers import AtomFeatureExtractor
+from fs_mol.preprocessing.utils.sequential_worker_pool import get_worker_pool
 
 logger = logging.getLogger(__name__)
 
@@ -48,13 +54,14 @@ def get_featurizing_argparser():
         "--load-metadata",
         dest="load_metadata",
         type=str,
+        default=os.path.join(os.path.dirname(os.path.realpath(__file__)), "../utils/helper_files/"),
         help="Load metadata with featurisers from this directory.",
     )
 
     parser.add_argument(
         "--min-size",
         type=int,
-        default=0,
+        default=32,
         help="Smallest assay to permit in final set.",
     )
 
@@ -62,7 +69,7 @@ def get_featurizing_argparser():
         "--max-size",
         dest="max_size",
         type=int,
-        default=None,
+        default=5000,
         help="Largest assay to permit in final set.",
     )
 

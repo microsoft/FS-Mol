@@ -19,16 +19,24 @@ where the functions are available via the CLEANING_STEPS dictionary.
 
 """
 import os
+import sys
 import csv
+import json
 import logging
+from dataclasses import dataclass
+from glob import glob
+from typing import List, Tuple
+from pathlib import Path
+from multiprocessing import cpu_count, Pool
+
 import pandas as pd
 import numpy as np
-from glob import glob
-from typing import List
-from multiprocessing import cpu_count
-from multiprocessing.pool import Pool
 
-from preprocessing.utils.cleaning_utils import (
+from pyreporoot import project_root
+
+sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
+
+from fs_mol.preprocessing.utils.cleaning_utils import (
     clean_units,
     log_standard_values,
     standardize_smiles,
@@ -97,22 +105,27 @@ def standardize(
     # first need to just keep one of the duplicates if smiles and value are *exactly* the same
     df = df.drop_duplicates(subset=["canonical_smiles", "standard_value"], keep="first")
 
-    # get log standard values -- need to convert uM first
-    df.loc[(df["standard_units"] == "uM"), "standard_value"] *= 1000
-    df.loc[(df["standard_units"] == "uM"), "standard_units"] = "nM"
+    if len(df) > 0:
 
-    df.loc[(df["standard_units"] == "%"), "log_standard_value"] = float("NaN")
-    df["log_standard_value"] = df.apply(log_standard_values, axis=1)
+        # get log standard values -- need to convert uM first
+        df.loc[(df["standard_units"] == "uM"), "standard_value"] *= 1000
+        df.loc[(df["standard_units"] == "uM"), "standard_units"] = "nM"
 
-    # now drop duplicates if the smiles are the same and the values are outside of a threshold
-    # close measurements are just noisy measurements of the same thing
-    # NOTE: this currently scales badly so we only apply it to smaller dataframes,
-    # larger assays are removed from the dataset in later stages.
-    if len(df) < 5000:
-        df = remove_far_duplicates(df)
+        if df["standard_units"].iloc[0] != "%":
+            df["log_standard_value"] = df.apply(log_standard_values, axis=1)
+        else:
+            df["log_standard_value"] = float("NaN")
+        df.loc[(df["standard_units"] == "%"), "log_standard_value"] = float("NaN")
 
-    df["max_num_atoms"] = df.num_atoms.max()
-    df["max_molecular_weight"] = df.molecular_weight.max()
+        # now drop duplicates if the smiles are the same and the values are outside of a threshold
+        # close measurements are just noisy measurements of the same thing
+        # NOTE: this currently scales badly so we only apply it to smaller dataframes,
+        # larger assays are removed from the dataset in later stages.
+        if len(df) < 5000:
+            df = remove_far_duplicates(df)
+
+        df["max_num_atoms"] = df.num_atoms.max()
+        df["max_molecular_weight"] = df.molecular_weight.max()
 
     return df
 
@@ -163,6 +176,25 @@ DEFAULT_CLEANING = {
 }
 
 
+@dataclass(frozen=True)
+class OutputSummary:
+    chembl_id: str
+    target_id: str
+    assay_type: str
+    assay_organism: str
+    raw_size: int
+    cleaned_size: int
+    cleaning_failed: str
+    cleaning_size_delta: int
+    num_pos: int
+    percentage_pos: float
+    max_mol_weight: float
+    threshold: float
+    max_num_atoms: int
+    confidence_score: int
+    standard_units: str
+
+
 def get_argparser():
 
     import argparse
@@ -182,34 +214,24 @@ def get_argparser():
         dest="input_dir",
         type=str,
         default="raw/",
-        help="Directory under $BASEPATH containing the input data to be cleaned.",
+        help="Directory under $BASE_PATH containing the input data to be cleaned.",
     )
 
     parser.add_argument(
-        "--output-name",
-        dest="output_name",
+        "--output-suffix",
+        dest="output_suffix",
         type=str,
         default="",
-        help="Directory to save in $BASEPATH/cleaned$output_name.",
+        help="Suffix to directory to save in $BASE_PATH/cleaned$output_name.",
     )
 
     parser.add_argument(
-        "--start-step",
-        dest="start_step",
-        type=int,
-        default=0,
-        help="Which cleaning function to apply first. Can pick up after 0.",
-    )
-
-    parser.add_argument(
-        "--stop-step",
-        dest="stop_step",
-        type=int,
-        default=2,
-        help=(
-            "Which cleaning function to apply last. Stopping early will save the data to be used"
-            " in more than one downstream cleaning function (advisable as step 1 is expensive)."
-        ),
+        "--assays",
+        dest="assays",
+        nargs="+",
+        type=str,
+        default=None,
+        help="Select assays to process by CHEMBL[ID] (e.g. CHEMBL999)",
     )
 
     parser.add_argument(
@@ -240,22 +262,128 @@ def get_argparser():
         help="Some tasks are parallelised: default workers is number cores available.",
     )
 
+    parser.add_argument(
+        "--confidence-lookup",
+        action="store_true",
+        help="If used, will look up each assay's confidence score from the utils/helper_files/confidence_lookup.json.",
+    )
+
     return parser
+
+
+def clean_assay(df: pd.DataFrame, assay: str) -> Tuple[pd.DataFrame, OutputSummary]:
+
+    # remove index if it was saved with this file (back compatible)
+    if "Unnamed: 0" in df.columns:
+        df.drop(columns=["Unnamed: 0"], inplace=True)
+
+    original_size = len(df)
+
+    failed = False
+    try:
+        print(f"Processing {assay}.")
+        df = select_assays(df, **DEFAULT_CLEANING)
+        df = standardize(df, **DEFAULT_CLEANING)
+        df = apply_thresholds(df, **DEFAULT_CLEANING)
+    except Exception as e:
+        df = None
+        logger.warning(f"Failed cleaning on {assay} : {e}")
+        failed = True
+
+    if df is None or len(df) == 0:
+        logger.warning(f"Assay {assay} was empty post cleaning.")
+        failed = True
+
+    assay_dict = {}
+    if failed:
+        assay_dict = {
+            "chembl_id": assay,
+            "target_id": "NaN",
+            "assay_type": "NaN",
+            "assay_organism": "NaN",
+            "raw_size": "NaN",
+            "cleaned_size": 0,
+            "cleaning_failed": str(True),
+            "cleaning_size_delta": "NaN",
+            "num_pos": "NaN",
+            "percentage_pos": "NaN",
+            "max_mol_weight": "NaN",
+            "threshold": "NaN",
+            "max_num_atoms": "NaN",
+            "confidence_score": "NaN",
+            "standard_units": "NaN",
+        }
+
+    else:
+        target_id = df.iloc[0]["target_id"] if "target_id" in df.columns else None
+
+        organism = None if df.iloc[0]["assay_organism"] == "nan" else df.iloc[0]["assay_organism"]
+        assay_dict = {
+            "chembl_id": assay,
+            "target_id": target_id,
+            "assay_type": df.iloc[0]["assay_type"],
+            "assay_organism": organism,
+            "raw_size": original_size,
+            "cleaned_size": len(df),
+            "cleaning_failed": str(failed),
+            "cleaning_size_delta": original_size - len(df),
+            "num_pos": df["activity"].sum(),
+            "percentage_pos": df["activity"].sum() * 100 / len(df),
+            "max_mol_weight": df.iloc[0]["max_molecular_weight"],
+            "threshold": df.iloc[0]["threshold"],
+            "max_num_atoms": df.iloc[0]["max_num_atoms"],
+            "confidence_score": df.iloc[0]["confidence_score"],
+            "standard_units": df.iloc[0]["standard_units"],
+        }
+
+    return df, OutputSummary(**assay_dict)
 
 
 def process_all_assays(
     files_to_process: List[str],
     output_dir: str,
     basepath: str,
-    start_step: int,
-    stop_step: int,
+    use_confidence_lookup: bool = False,
 ) -> None:
 
     summary_file = os.path.join(output_dir, "summary.csv")
 
     logger.info(f"{len(files_to_process)} files remaining to process.")
 
-    with open(summary_file, "w", newline="") as csv_file:
+    # confidence score lookup (if required for this particular pre-queried data)
+    if use_confidence_lookup:
+        with open(
+            os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                "utils/helper_files/confidence_lookup.json",
+            ),
+            "r",
+        ) as jsonfile:
+            confidence_lookup = json.load(jsonfile)
+
+    summaries = []
+    for i, assay_file in enumerate(files_to_process):
+        assay = os.path.basename(assay_file).split(".")[0]
+        logger.info(f"Processing {i}: {assay}.")
+        try:
+            df = pd.read_csv(assay_file)
+            if len(df) == 0:
+                logger.warning(f"Loaded empty assay: {assay}")
+            if "confidence_score" not in df.columns:
+                df["confidence_score"] = confidence_lookup[assay]
+            df, summary = clean_assay(df, assay)
+            logger.info(f"Assay {assay} saving to output directory.")
+            if df is not None and len(df) > 0:
+                df.to_csv(
+                    os.path.join(output_dir, os.path.basename(assay_file)),
+                    index=False,
+                )
+            summaries.append(summary)
+        except Exception as e:
+            logger.warning(f"failed to clean assay: {e}")
+            continue
+
+    with open(summary_file, "a+", newline="") as csv_file:
         fieldnames = [
             "chembl_id",
             "target_id",
@@ -276,139 +404,34 @@ def process_all_assays(
         csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         csv_writer.writeheader()
 
-        for i, assay_file in enumerate(files_to_process):
-            try:
-                df = pd.read_csv(assay_file)
-                assay = os.path.basename(assay_file).split(".")[0]
-                logger.info(f"Processing {i}: {assay}.")
-                original_size = len(df)
-            except Exception as e:
-                logger.warning(f"failed to load assay: {e}")
-                continue
-
-            # remove index if it was saved with this file (back compatible)
-            if "Unnamed: 0" in df.columns:
-                df.drop(columns=["Unnamed: 0"], inplace=True)
-
-            failed = False
-            # go through the cleaning steps from start-step to stop-step
-            for step, clean_func in CLEANING_STEPS.items():
-                if failed:
-                    break
-                elif step < start_step:
-                    continue
-                elif step > stop_step:
-                    break
-                else:
-                    if step != 0:
-                        tmp_dir = os.path.join(basepath, f"cleaned_pass_{step-1}/")
-                        os.makedirs(tmp_dir, exist_ok=True)
-                    try:
-                        logger.info(f"Processing {assay} step {step}.")
-                        df_copy = df.copy()
-                        df = clean_func(df, **DEFAULT_CLEANING)
-                    except Exception as e:
-                        df = None
-                        logger.warning(f"Failed cleaning step {step} on {assay} : {e}")
-
-                    if df is None or len(df) == 0:
-                        failed = True
-                        logger.warning(
-                            f"Assay {assay} was empty post cleaning, saving intermediate, not passing to next step."
-                        )
-                        # do not save back to raw/, step must be 1 or greater for this saving.
-                        if step != 0:
-                            df_copy.to_csv(
-                                os.path.join(tmp_dir, os.path.basename(assay_file)),
-                                index=False,
-                            )
-
-                    # save out at end with summary
-                    if step == stop_step:
-                        if not failed:
-
-                            logger.info(f"Assay {assay} saving to output directory.")
-                            df.to_csv(
-                                os.path.join(output_dir, os.path.basename(assay_file)),
-                                index=False,
-                            )
-
-                            target_id = (
-                                df.iloc[0]["target_id"] if "target_id" in df.columns else None
-                            )
-
-                            organism = (
-                                None
-                                if df.iloc[0]["assay_organism"] == "nan"
-                                else df.iloc[0]["assay_organism"]
-                            )
-
-                            assay_dict = {
-                                "chembl_id": assay,
-                                "target_id": target_id,
-                                "assay_type": df.iloc[0]["assay_type"],
-                                "assay_organism": organism,
-                                "raw_size": original_size,
-                                "cleaned_size": len(df),
-                                "cleaning_failed": str(failed),
-                                "cleaning_size_delta": original_size - len(df),
-                                "num_pos": float("NaN"),
-                                "percentage_pos": float("NaN"),
-                                "max_mol_weight": float("NaN"),
-                                "threshold": float("NaN"),
-                                "max_num_atoms": float("NaN"),
-                                "confidence_score": df.iloc[0]["confidence_score"],
-                                "standard_units": df.iloc[0]["standard_units"],
-                            }
-                            if step >= 1:
-                                # we now have max molecule sizes
-                                assay_dict.update(
-                                    {
-                                        "max_num_atoms": df.iloc[0]["max_num_atoms"],
-                                        "max_mol_weight": df.iloc[0]["max_molecular_weight"],
-                                    }
-                                )
-                            if step >= 2:
-                                # we have activity values
-                                assay_dict.update(
-                                    {
-                                        "threshold": df.iloc[0]["threshold"],
-                                        "num_pos": df["activity"].sum(),
-                                        "percentage_pos": df["activity"].sum() * 100 / len(df),
-                                    }
-                                )
-                        else:
-                            if df is None:
-                                df_size = float("NaN")
-                            else:
-                                df_size = len(df)
-                            target_id = None
-                            assay_type = None
-                            assay_dict = {
-                                "chembl_id": assay,
-                                "target_id": target_id,
-                                "assay_type": assay_type,
-                                "assay_organism": None,
-                                "raw_size": original_size,
-                                "cleaned_size": 0,
-                                "cleaning_failed": str(failed),
-                                "cleaning_size_delta": df_size,
-                                "num_pos": float("NaN"),
-                                "percentage_pos": float("NaN"),
-                                "confidence_score": None,
-                                "standard_units": None,
-                                "max_num_atoms": float("NaN"),
-                                "max_mol_weight": float("NaN"),
-                            }
-                        csv_writer.writerow(assay_dict)
+        for summary in summaries:
+            csv_writer.writerow(
+                {
+                    "chembl_id": summary.chembl_id,
+                    "target_id": summary.target_id,
+                    "assay_type": summary.assay_type,
+                    "assay_organism": summary.assay_organism,
+                    "raw_size": summary.raw_size,
+                    "cleaned_size": summary.cleaned_size,
+                    "cleaning_failed": summary.cleaning_failed,
+                    "cleaning_size_delta": summary.cleaning_size_delta,
+                    "num_pos": summary.num_pos,
+                    "percentage_pos": summary.percentage_pos,
+                    "max_mol_weight": summary.max_mol_weight,
+                    "threshold": summary.threshold,
+                    "max_num_atoms": summary.max_num_atoms,
+                    "confidence_score": summary.confidence_score,
+                    "standard_units": summary.standard_units,
+                }
+            )
 
 
 def get_files_to_process(input_dir: str, output_dir: str) -> List[str]:
-    all_raw_files = glob(input_dir + "CHEMBL*.csv", recursive=True)
+    all_raw_files = glob(os.path.join(input_dir, "CHEMBL*.csv"), recursive=True)
     all_done_assays = set(
         [
             os.path.basename(x).split(".")[0]
-            for x in glob(output_dir + "/CHEMBL*.csv", recursive=True)
+            for x in glob(os.path.join(output_dir, "CHEMBL*.csv"), recursive=True)
         ]
     )
     files_to_process = []
@@ -421,7 +444,7 @@ def get_files_to_process(input_dir: str, output_dir: str) -> List[str]:
 
 def clean_directory(args):
 
-    basepath = args.BASEPATH
+    basepath = args.BASE_PATH
 
     if args.hard_only:
         DEFAULT_CLEANING.update({"hard_only": True})
@@ -433,14 +456,21 @@ def clean_directory(args):
     DEFAULT_CLEANING.update({"max_mol_weight": args.max_mol_weight})
 
     input_dir = os.path.join(basepath, args.input_dir)
-    output_dir = os.path.join(basepath, f"cleaned{args.output_name}/")
+    output_dir = os.path.join(basepath, f"cleaned{args.output_suffix}/")
     os.makedirs(output_dir, exist_ok=True)
 
     # do not repeat cleaning on already cleaned files.
 
     files_to_process = get_files_to_process(input_dir, output_dir)
 
-    process_all_assays(files_to_process, output_dir, basepath, args.start_step, args.stop_step)
+    if args.assays is not None:
+        filenames = [os.path.join(input_dir, f"{x}.csv") for x in args.assays]
+        files_to_process = set(files_to_process).intersection(set(filenames))
+
+    print(f"Processing {len(files_to_process)}.")
+    process_all_assays(
+        files_to_process, output_dir, basepath, use_confidence_lookup=args.confidence_lookup
+    )
 
 
 def run():
