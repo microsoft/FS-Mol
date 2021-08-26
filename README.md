@@ -84,7 +84,7 @@ python fs_mol/mat_test.py /path/to/pretrained-mat /path/to/data
 
 ### GNN-MAML pre-training and evaluation
 
-The GNN-MAML model consists of a GNN operating on the molecular graph representations of the dataset. The model consists of a $8$-layer GNN with node-embedding dimension $128$. The GNN uses "Edge-MLP" message passing [ref](). The model was trained with a support set size of $16$ according to the MAML procedure [Finn 2017](http://proceedings.mlr.press/v70/finn17a/finn17a.pdf). The hyperparameters used in the model checkpoint are default settings of `maml_train.py`.
+The GNN-MAML model consists of a GNN operating on the molecular graph representations of the dataset. The model consists of a $8$-layer GNN with node-embedding dimension $128$. The GNN uses "Edge-MLP" message passing. The model was trained with a support set size of $16$ according to the MAML procedure [Finn 2017](http://proceedings.mlr.press/v70/finn17a/finn17a.pdf). The hyperparameters used in the model checkpoint are default settings of `maml_train.py`.
 
 The current defaults were used to train the final versions of GNN-MAML available here. 
 
