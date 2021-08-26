@@ -60,6 +60,8 @@ Note that our baseline test scripts (`fs_mol/baseline_test.py`, `fs_mol/maml_tes
 
 We provide implementations for three key few-shot learning methods: Multitask learning, Model-Agnostic Meta-Learning, and Prototypical Networks, as well as evaluation on the Single-Task baselines and the Molecule Attention Transformer (MAT) [paper](https://arxiv.org/abs/2002.08264v1), [code](https://github.com/lucidrains/molecule-attention-transformer). 
 
+All results and associated plots are found in the baselines/ directory. 
+
 These baseline methods can be run on the FS-Mol dataset as follows:
 
 ### kNNs and Random Forests -- Single Task Baselines
