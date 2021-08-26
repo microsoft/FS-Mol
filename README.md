@@ -14,6 +14,8 @@ This repository contains data and code for FS-Mol: A Few-Shot Learning Dataset o
 
    ```
 
+The code for the Molecule Attention Transformer baseline is added as a submodule of this repository. Hence, in order to be able to run MAT, one has to clone our repository via `git clone --recurse-submodules`. Alternatively, one can first clone our repository normally, and then set up submodules via `git submodule update --init`. If the MAT submodule is not set up, all the other parts of our repository should continue to work.
+
 ## Data
 
 The actual dataset is stored in `dataset/`, split into `train`, `valid` and `test` folders.
