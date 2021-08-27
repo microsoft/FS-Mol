@@ -240,4 +240,6 @@ def eval_model(
         if out_dir is not None:
             write_csv_summary(os.path.join(out_dir, f"{task.name}_eval_results.csv"), test_results)
 
+    logger.info(f"=== Completed evaluation on all tasks.")
+
     return task_to_results
