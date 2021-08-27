@@ -114,7 +114,7 @@ Evaluation is run as:
 python fs_mol/multitask_test.py /path/to/gnn-mt-checkpoint /path/to/data
 ```
 
-### Prototypical Networks (PN) pre-training and evaluatio
+### Prototypical Networks (PN) pre-training and evaluation
 
 The prototypical networks method [Snell 2017](https://proceedings.neurips.cc/paper/2017/file/cb8da6767461f2812ae4290eac7cbc42-Paper.pdf) extracts representations of support set datapoints and uses these to classify positive and negative examples. We here used the Mahalonobis distance as a metric for query point distance to class prototypes. 
 
