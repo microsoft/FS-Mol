@@ -1,12 +1,18 @@
 """
 Class to hold the result of a featurisation of a SMILES -> RDkit Mol -> features process.
 """
+import sys
+from pathlib import Path
 from typing import Iterable, List, Any, Dict, Optional
 
-from preprocessing.featurisers.featurisers import (
+from pyreporoot import project_root
+
+sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
+
+from fs_mol.preprocessing.featurisers.featurisers import (
     AtomFeatureExtractor,
 )
-from preprocessing.featurisers.molgraph_utils import (
+from fs_mol.preprocessing.featurisers.molgraph_utils import (
     molecule_to_graph,
     compute_smiles_dataset_metadata,
 )

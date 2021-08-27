@@ -90,7 +90,7 @@ def test_cleaning_pipeline(
 
     process_all_assays(files_to_process, output_dir, basepath, 0, 2)
 
-    fully_cleaned_files = glob(output_dir + "/CHEMBL*.csv", recursive=True)
+    fully_cleaned_files = glob(os.path.join(output_dir, "CHEMBL*.csv"), recursive=True)
 
     assert len(fully_cleaned_files) == 1
 
