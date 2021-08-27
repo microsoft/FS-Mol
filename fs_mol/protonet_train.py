@@ -47,7 +47,7 @@ def parse_command_line():
         default="mahalanobis",
         help="Choice of distance to use.",
     )
-    parser.add_argument("--support_set_size", type=int, default=16, help="Size of support set")
+    parser.add_argument("--support_set_size", type=int, default=64, help="Size of support set")
     parser.add_argument(
         "--query_set_size",
         type=int,

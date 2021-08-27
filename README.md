@@ -144,13 +144,13 @@ python fs_mol/protonet_test.py /path/to/pn-checkpoint /path/to/data
 
 ## Available Model Checkpoints
 
-We provide pre-trained models for `GNN-MAML`, `GNN-MT` and `PN`.
+We provide pre-trained models for `GNN-MAML`, `GNN-MT` and `PN`, these are downloadable from the links to [figshare](https://figshare.com/articles/dataset/FSMol_Baseline_Models/16511568).
 
-| Model Name | Description                                                | Checkpoint File |
-|------------|------------------------------------------------------------|-----------------|
-| GNN-MAML   | Support set size 16. 8-layer GNN. Edge MLP message passing.|                 |
-| GNN-MT     | 10-layer GNN. PNA message passing                          |                 |
-| PN         |                                                            |                 |
+| Model Name | Description                                                               | Checkpoint File                                                                      |
+|------------|---------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| GNN-MAML   | Support set size 16. 8-layer GNN. Edge MLP message passing.               | [MAML-Support16_best_validation.pkl](https://figshare.com/ndownloader/files/30560868)|
+| GNN-MT     | 10-layer GNN. PNA message passing                                         | [Multitask_best_models](https://figshare.com/ndownloader/files/30560865)             |
+| PN         | 10-layer GGN, PNA message passing. ECFP+GNN, Mahalonobis distance metric  | [PN-Support64_best_validation.pt](https://figshare.com/ndownloader/files/30560862)   |
 
 
 ## Specifying, Training and Evaluating New Model Implementations
