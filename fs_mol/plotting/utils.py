@@ -432,7 +432,7 @@ def plot_all_assays(
                     fmt="o",
                     ms=0,
                     linestyle="-",
-                    elinewidth=0,
+                    elinewidth=0.8,
                 )
             ax.plot(
                 [x_pos.min() - 2, x_pos.max() + 2],
@@ -449,7 +449,10 @@ def plot_all_assays(
             ax.set_xticklabels(sizes_to_compare)
             ax.set_title(f"Performance on task {task}")
             if results_dir is not None:
-                plt.savefig(os.path.join(results_dir, f"{task}.png"))
+                plt.savefig(
+                    os.path.join(results_dir, f"{task}.png"),
+                    bbox_inches="tight",
+                )
             plt.show(fig)
             plt.close(fig)
         except Exception as e:
@@ -580,6 +583,8 @@ def plot_task_performances_by_id(
     highlight_class: Optional[int] = None,
 ) -> None:
 
+    markers = ["s", "P", "*", "X", "^", "o", "D", "p"]
+
     plt.rcParams.update({"font.size": 14, "text.usetex": True})
 
     frac_positives = merged_df["fraction_positive_train"]
@@ -594,14 +599,19 @@ def plot_task_performances_by_id(
     frac_pos_to_auprc_ax.plot(n, n, color="black")
 
     for i, model_name in enumerate(model_summaries.keys()):
-        color = plt.get_cmap("plasma").colors[i * 50 + 10]
+        color = plt.get_cmap("plasma").colors[i * 40 + 10]
         # Get AUPRC for each model, to plot against fraction of posirives
         model_auprcs = [
             get_number_from_val_plusminus_error(model_result)
             for model_result in merged_df[f"{support_set_size}_train ({model_name})"].values
         ]
         frac_pos_to_auprc_ax.scatter(
-            frac_positives, model_auprcs, s=100, marker="+", label=model_name, color=color
+            frac_positives,
+            model_auprcs,
+            s=20,
+            label=model_name,
+            color=color,
+            marker=markers[i],
         )
 
         # select section to highlight
@@ -636,8 +646,8 @@ def plot_task_performances_by_id(
             assay_id_to_improv_ax.scatter(
                 merged_df.iloc[nhdf]["TASK_ID"],
                 model_auprc_diff_to_random.iloc[nhdf],
-                s=100,
-                marker="+",
+                s=20,
+                marker=markers[i],
                 label=f"{model_name}",
                 color=color,
                 alpha=0.3,
@@ -832,8 +842,12 @@ def make_box_plot(
         }
     )
 
-    plt.rc("xtick", labelsize=18)
-    plt.rc("ytick", labelsize=18)
+    plt.rc("axes", labelsize=24)  # fontsize of the x and y labels
+
+    plt.rc("legend", fontsize=22)  # fontsize of the legend
+
+    plt.rc("xtick", labelsize=22)
+    plt.rc("ytick", labelsize=22)
 
     bp_dict = extend_df.boxplot(
         column=model_cols,
@@ -844,8 +858,9 @@ def make_box_plot(
         return_type="both",
         figsize=(10, 10),
     )
-    bp_dict.ax.set_yticklabels(model_names)
+    bp_dict.ax.set_yticklabels(model_names, fontsize=22)
     bp_dict.ax.set_xlabel("$\Delta$ AUPRC")
+    bp_dict.ax.tick_params(axis="x", labelsize=22)
 
     # for row_key, (ax,row) in bp_dict.iteritems():
     for i, box in enumerate(bp_dict.lines["boxes"]):
@@ -981,7 +996,7 @@ def plot_by_size(
     """
 
     markers = ["s", "P", "*", "X", "^", "o", "D", "p"]
-    color_set = ["red", "darkorange", "forestgreen", "blue", "darkviolet", "slategrey"]
+    color_set = ["red", "darkorange", "forestgreen", "blue", "darkviolet", "slategrey", "black"]
 
     def get_style(cls, model_name):
         if cls == "all":
@@ -1017,7 +1032,7 @@ def plot_by_size(
 
     plt.rcParams.update(
         {
-            "font.size": 20,
+            "font.size": 26,
             "text.usetex": True,
             "font.family": "serif",
             "font.serif": "Computer Modern Roman",
