@@ -684,7 +684,7 @@ def aggregate_by_class(
     for highlight_class in classes:
 
         hdf = ecmerged[ecmerged.EC_super_class == highlight_class].index
-        aggresults = pd.DataFrame()  # TODO: store results for each class
+        aggresults = pd.DataFrame()
         aggerrors = pd.DataFrame()
 
         for model_name in model_summaries.keys():
@@ -981,10 +981,6 @@ def plot_by_size(
     """
 
     markers = ["s", "P", "*", "X", "^", "o", "D", "p"]
-    # colors = [200, 128, 64, 160, 10, 32]
-    # color_set = [plt.get_cmap("plasma").colors[x] for x in colors]
-    # colors = [175, 170, 160, 64, 32, 10]
-    # color_set = [plt.get_cmap("nipy_spectral")(x) for x in colors]#
     color_set = ["red", "darkorange", "forestgreen", "blue", "darkviolet", "slategrey"]
 
     def get_style(cls, model_name):
@@ -1031,7 +1027,6 @@ def plot_by_size(
     fig, ax = plt.subplots(figsize=(10, 10))
 
     for j, model_name in enumerate(model_summaries.keys()):
-        # color = plt.get_cmap("plasma").colors[j * 50 + 40]
 
         a = vals[model_name]
         v = stds[model_name]
