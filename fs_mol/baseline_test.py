@@ -28,10 +28,10 @@ logger = logging.getLogger(__name__)
 # hyperparam search params
 DEFAULT_GRID_SEARCH: Dict[str, Dict[str, List[Any]]] = {
     "randomForest": {
-        "n_estimators": [10, 100, 200, 500],
-        "max_depth": [None, 5, 10, 20],
-        "max_features": ["auto", "sqrt", "log2"],
-        "min_samples_leaf": [1, 2, 5],
+        "n_estimators": [100, 200],
+        "max_depth": [5, 10, 20],
+        "max_features": [None, "sqrt", "log2"],
+        "min_samples_leaf": [2, 5],
     },
     "kNN": {"n_neighbors": [4, 8, 16, 32, 64, 128], "metric": ["minkowski"]},
 }
