@@ -684,7 +684,7 @@ def aggregate_by_class(
     for highlight_class in classes:
 
         hdf = ecmerged[ecmerged.EC_super_class == highlight_class].index
-        aggresults = pd.DataFrame()  # TODO: store results for each class
+        aggresults = pd.DataFrame()
         aggerrors = pd.DataFrame()
 
         for model_name in model_summaries.keys():
@@ -811,11 +811,13 @@ def calculate_delta_auprc(
     return extend_df
 
 
-def box_plot(
-    extend_df: pd.DataFrame,
-    model_summaries: Dict[str, str],
-    support_set_size: int = 16,
+def make_box_plot(
+    extend_df,
+    model_cols,
+    model_names,
+    support_set_size,
     plot_output_dir: Optional[str] = None,
+    highlight_class: Optional[int] = None,
 ) -> None:
 
     light_color = plt.get_cmap("plasma").colors[170]
@@ -832,12 +834,6 @@ def box_plot(
 
     plt.rc("xtick", labelsize=18)
     plt.rc("ytick", labelsize=18)
-
-    model_cols = []
-    model_names = []
-    for model_name in model_summaries.keys():
-        model_cols.append(f"{support_set_size}_train ({model_name}) val delta-auprc")
-        model_names.append(f"{model_name}")
 
     bp_dict = extend_df.boxplot(
         column=model_cols,
@@ -865,13 +861,48 @@ def box_plot(
     for i, box in enumerate(bp_dict.lines["medians"]):
         box.set_color("black")
 
-    plt.show(box)
+    if highlight_class is not None:
+        hc = highlight_class
+    else:
+        hc = "all"
 
     if plot_output_dir is not None:
         plt.savefig(
-            os.path.join(plot_output_dir, f"comparison_boxplot_{support_set_size}.png"),
+            os.path.join(plot_output_dir, f"comparison_boxplot_{support_set_size}_hc_{hc}.png"),
             bbox_inches="tight",
         )
+
+    plt.show(box)
+
+
+def box_plot(
+    extend_df: pd.DataFrame,
+    model_summaries: Dict[str, str],
+    support_set_size: int = 16,
+    plot_output_dir: Optional[str] = None,
+    highlight_class: Optional[int] = None,
+) -> None:
+
+    model_cols = []
+    model_names = []
+    for model_name in model_summaries.keys():
+        model_cols.append(f"{support_set_size}_train ({model_name}) val delta-auprc")
+        model_names.append(f"{model_name}")
+
+    if highlight_class is not None:
+        extend_df_highlighted = extend_df[extend_df["EC_super_class"] == highlight_class]
+        make_box_plot(
+            extend_df_highlighted,
+            model_cols,
+            model_names,
+            support_set_size,
+            plot_output_dir=plot_output_dir,
+            highlight_class=highlight_class,
+        )
+
+    make_box_plot(
+        extend_df, model_cols, model_names, support_set_size, plot_output_dir=plot_output_dir
+    )
 
 
 def get_aggregates_across_sizes(
@@ -932,8 +963,9 @@ def collect_model_results(
 def plot_by_size(
     df: pd.DataFrame,
     model_summaries: Dict[str, str],
-    plot_output_dir: Optional[str] = None,
     plot_all_classes: bool = False,
+    highlight_class: Optional[int] = None,
+    plot_output_dir: Optional[str] = None,
 ):
     """
     Plotting function to create the aggregation-by-support-set-size plot.
@@ -948,10 +980,13 @@ def plot_by_size(
 
     """
 
+    markers = ["s", "P", "*", "X", "^", "o", "D", "p"]
+    color_set = ["red", "darkorange", "forestgreen", "blue", "darkviolet", "slategrey"]
+
     def get_style(cls, model_name):
         if cls == "all":
             label = model_name
-            lw = 1.0
+            lw = 1.3
             ls = "-"
             alpha = 1.0
         else:
@@ -965,7 +1000,14 @@ def plot_by_size(
     # pull all values out of the aggregate df
     vals, stds = collect_model_results(df, model_summaries)
     categories = {x: i for i, x in enumerate(vals["GNN-MAML"].index)}
-    reduced_list = ["all"]
+    if highlight_class is not None:
+        assert (
+            str(highlight_class) in categories.keys()
+        ), f"Cannot highlight class {highlight_class}, not in dataset."
+        reduced_list = [str(highlight_class)]
+    else:
+        reduced_list = ["all"]
+        highlight_class = "all"
     reduced = {k: categories[k] for k in reduced_list if k in categories}
 
     if not plot_all_classes:
@@ -984,8 +1026,7 @@ def plot_by_size(
 
     fig, ax = plt.subplots(figsize=(10, 10))
 
-    for i, model_name in enumerate(model_summaries.keys()):
-        color = plt.get_cmap("plasma").colors[i * 50 + 50]
+    for j, model_name in enumerate(model_summaries.keys()):
 
         a = vals[model_name]
         v = stds[model_name]
@@ -998,10 +1039,11 @@ def plot_by_size(
                 v.values[i],
                 label=label,
                 linestyle=ls,
-                marker="o",
+                marker=markers[j],
                 ms=8,
-                color=color,
+                color=color_set[j],
                 alpha=alpha,
+                markeredgecolor="black",
                 linewidth=lw,
             )
 
@@ -1010,13 +1052,14 @@ def plot_by_size(
     ax.set_xlabel("$|\mathcal{T}_{u, support}|$")
     ax.set_xticks(TRAIN_SIZES_TO_COMPARE)
     ax.set_xticklabels(TRAIN_SIZES_TO_COMPARE)
+    ax.set_ylim([0.00, 0.40])
     plt.grid(True, color="grey", alpha=0.3, linestyle="--")
 
-    plt.show(fig)
-    plt.close(fig)
-
     if plot_output_dir is not None:
-        plt.savefig(os.path.join(plot_output_dir, f"comparison_plot.png"), bbox_inches="tight")
+        plt.savefig(
+            os.path.join(plot_output_dir, f"comparison_plot_hc_{highlight_class}.png"),
+            bbox_inches="tight",
+        )
 
     # need to do this to get autorank to work (does not work by setting in notebook)
     plt.rcParams.update(
@@ -1024,3 +1067,6 @@ def plot_by_size(
             "text.usetex": False,
         }
     )
+
+    plt.show(fig)
+    plt.close(fig)
