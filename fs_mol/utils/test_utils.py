@@ -215,7 +215,7 @@ def eval_model(
                         FoldTooSmallException,
                         ValueError,
                     ) as e:
-                        logger.warning(
+                        logger.debug(
                             f"Failed to draw sample with {train_size} train points for {task.name}. Skipping."
                         )
                         logger.debug("Sampling error: " + str(e))

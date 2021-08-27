@@ -31,6 +31,7 @@ from fs_mol.data import (
     FSMolTaskSample,
     StratifiedTaskSampler,
 )
+from fs_mol.data.fsmol_task_sampler import SamplingException
 from fs_mol.data.maml import FSMolStubGraphDataset, TFGraphBatchIterable
 from fs_mol.models.metalearning_graph_binary_classification import (
     MetalearningGraphBinaryClassificationTask,
@@ -214,7 +215,10 @@ def metatrain_loop(
     def read_and_sample_from_task(paths: List[RichPath], id: int) -> Iterable[FSMolTaskSample]:
         for i, path in enumerate(paths):
             task = FSMolTask.load_from_file(path)
-            yield task_sampler.sample(task, seed=id + i)
+            try:
+                yield task_sampler.sample(task, seed=id + i)
+            except SamplingException as e:
+                logger.debug(f"Sampling task failed:\n{str(e)}")
 
     # A metatesting epoch is when given a pre-trained model, we iterate over all validation tasks,
     # fine-tune the model to convergence and report back the results. The resulting metric

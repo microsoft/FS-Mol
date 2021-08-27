@@ -161,7 +161,7 @@ def get_protonet_task_sample_iterable(
                 task_sample = task_sampler.sample(task, seed=idx + num_task_samples)
                 num_task_samples += 1
             except Exception as e:
-                logger.warning(f"{task.name}: Sampling failed: {e}")
+                logger.debug(f"{task.name}: Sampling failed: {e}")
                 continue
 
             yield task_sample_to_pn_task_sample(task_sample, batcher)
