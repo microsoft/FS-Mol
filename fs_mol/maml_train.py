@@ -431,14 +431,14 @@ def get_metatraining_argparser():
     parser.add_argument(
         "--task-batch-size",
         type=int,
-        default=8,
+        default=5,
         help="Number of tasks to use per step of the outer MAML loop.",
     )
 
     parser.add_argument(
         "--train-size",
         type=int,
-        default=64,
+        default=16,
         help="Number of samples to use per class as metatraining context.",
     )
 
@@ -485,7 +485,7 @@ def get_metatraining_argparser():
         "--validation-test-set-size",
         type=int,
         default=512,
-        help="Number of datapoints sampled as test data during evaluation through finetuning on the validation tasks.",
+        help="Maximum number of datapoints sampled as test data during evaluation through finetuning on the validation tasks.",
     )
 
     parser.add_argument(
