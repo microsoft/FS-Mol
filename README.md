@@ -1,3 +1,17 @@
+<!--
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "name": "FS-Mol",
+    "description": "A Few-Shot Learning Dataset of Molecules",
+    "url": "https://github.com/microsoft/FS-Mol/tree/main/datasets",
+    "license": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "isAccessibleForFree" : true,
+  }
+</script>
+-->
+
 # FS-Mol: A Few-Shot Learning Dataset of Molecules
 
 This repository contains data and code for FS-Mol: A Few-Shot Learning Dataset of Molecules.
