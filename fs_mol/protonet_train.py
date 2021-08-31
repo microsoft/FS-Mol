@@ -48,13 +48,9 @@ def parse_command_line():
         default="mahalanobis",
         help="Choice of distance to use.",
     )
-<<<<<<< HEAD
     add_gnn_model_arguments(parser)
 
     parser.add_argument("--support_set_size", type=int, default=16, help="Size of support set")
-=======
-    parser.add_argument("--support_set_size", type=int, default=64, help="Size of support set")
->>>>>>> main
     parser.add_argument(
         "--query_set_size",
         type=int,
