@@ -139,7 +139,10 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
         gnn_params, other_params = [], []
         gnn_feature_extractor_param_name = "graph_feature_extractor."
         for our_name, our_param in our_state_dict.items():
-            if our_name.startswith(gnn_feature_extractor_param_name) and not "final_norm_layer" in our_name:
+            if (
+                our_name.startswith(gnn_feature_extractor_param_name)
+                and not "final_norm_layer" in our_name
+            ):
                 generic_name = our_name[len(gnn_feature_extractor_param_name) :]
                 if generic_name.startswith("readout_layer."):
                     generic_name = f"readout{generic_name[len('readout_layer'):]}"

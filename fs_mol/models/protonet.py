@@ -50,9 +50,7 @@ class GraphFeatureExtractor(nn.Module):
             num_heads=12,
             head_dim=64,
         )
-        self.final_norm_layer = nn.BatchNorm1d(
-            num_features=embedding_dim
-        )
+        self.final_norm_layer = nn.BatchNorm1d(num_features=embedding_dim)
 
     @property
     def device(self) -> torch.device:
