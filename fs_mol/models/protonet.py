@@ -49,9 +49,12 @@ class GraphFeatureExtractor(nn.Module):
             out_dim=embedding_dim,
             num_heads=12,
             head_dim=64,
+<<<<<<< HEAD
         )
         self.final_norm_layer = nn.BatchNorm1d(
             num_features=embedding_dim
+=======
+>>>>>>> main
         )
 
     @property
@@ -90,8 +93,10 @@ class PrototypicalNetwork(nn.Module):
                 embedding_dim=self.gnn_feature_dim,
             )
 
+        self.use_fc = self.config.used_features.endswith("+fc")
+
         # Create MLP if needed:
-        if self.config.used_features.endswith("+fc"):
+        if self.use_fc:
             # Determine dimension:
             fc_in_dim = 0
             if "gnn" in self.config.used_features:
@@ -120,21 +125,37 @@ class PrototypicalNetwork(nn.Module):
             query_features.append(self.graph_feature_extractor(input_batch.query_features))
         if "ecfp" in self.config.used_features:
             support_features.append(
-                torch.tensor(input_batch.support_features.fingerprints, device=self.device)
+                torch.tensor(
+                    input_batch.support_features.fingerprints,
+                    device=self.device,
+                    dtype=torch.float32,
+                )
             )
             query_features.append(
-                torch.tensor(input_batch.query_features.fingerprints, device=self.device)
+                torch.tensor(
+                    input_batch.query_features.fingerprints, device=self.device, dtype=torch.float32
+                )
             )
         if "pc-descs" in self.config.used_features:
             support_features.append(
-                torch.tensor(input_batch.support_features.descriptors, device=self.device)
+                torch.tensor(
+                    input_batch.support_features.descriptors,
+                    device=self.device,
+                    dtype=torch.float32,
+                )
             )
             query_features.append(
-                torch.tensor(input_batch.query_features.descriptors, device=self.device)
+                torch.tensor(
+                    input_batch.query_features.descriptors, device=self.device, dtype=torch.float32
+                )
             )
 
         support_features_flat = torch.cat(support_features, dim=1)
         query_features_flat = torch.cat(query_features, dim=1)
+
+        if self.use_fc:
+            support_features_flat = self.fc(support_features_flat)
+            query_features_flat = self.fc(query_features_flat)
 
         if self.config.distance_metric == "mahalanobis":
             class_means, class_precision_matrices = self.compute_class_means_and_precisions(

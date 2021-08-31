@@ -5,7 +5,7 @@ import pickle
 from tqdm import tqdm
 from typing import Dict, Iterable, Any, List, Optional
 
-from preprocessing.featurisers.featurised_data import FeaturisedData
+from fs_mol.preprocessing.featurisers.featurised_data import FeaturisedData
 
 
 def write_jsonl_gz_data(

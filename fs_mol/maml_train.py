@@ -18,7 +18,6 @@ from dpu_utils.utils import run_and_debug, RichPath
 from more_itertools import chunked
 from tf2_gnn.cli_utils.model_utils import load_weights_verbosely
 from tf2_gnn.cli_utils.training_utils import unwrap_tf_tracked_data
-from tf2_gnn.data.graph_dataset import GraphSample
 from tf2_gnn.layers import get_known_message_passing_classes
 
 from pyreporoot import project_root
@@ -32,13 +31,14 @@ from fs_mol.data import (
     FSMolTaskSample,
     StratifiedTaskSampler,
 )
+from fs_mol.data.fsmol_task_sampler import SamplingException
+from fs_mol.data.maml import FSMolStubGraphDataset, TFGraphBatchIterable
 from fs_mol.models.metalearning_graph_binary_classification import (
     MetalearningGraphBinaryClassificationTask,
 )
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
 from fs_mol.utils.logging import FileLikeLogger, PROGRESS_LOG_LEVEL
-from fs_mol.utils.maml_data_utils import FSMolStubGraphDataset, TFGraphBatchIterable
-from fs_mol.utils.maml_train_utils import save_model, eval_model_by_finetuning_on_tasks
+from fs_mol.utils.maml_utils import save_model, eval_model_by_finetuning_on_tasks
 
 
 logger = logging.getLogger(__name__)
@@ -212,10 +212,13 @@ def metatrain_loop(
         test_size_or_ratio=(min_test_size, test_size),
     )
 
-    def read_and_sample_from_task(paths: List[RichPath], id: int) -> Iterable[GraphSample]:
+    def read_and_sample_from_task(paths: List[RichPath], id: int) -> Iterable[FSMolTaskSample]:
         for i, path in enumerate(paths):
             task = FSMolTask.load_from_file(path)
-            yield task_sampler.sample(task, seed=id + i)
+            try:
+                yield task_sampler.sample(task, seed=id + i)
+            except SamplingException as e:
+                logger.debug(f"Sampling task failed:\n{str(e)}")
 
     # A metatesting epoch is when given a pre-trained model, we iterate over all validation tasks,
     # fine-tune the model to convergence and report back the results. The resulting metric
@@ -428,14 +431,14 @@ def get_metatraining_argparser():
     parser.add_argument(
         "--task-batch-size",
         type=int,
-        default=8,
+        default=5,
         help="Number of tasks to use per step of the outer MAML loop.",
     )
 
     parser.add_argument(
         "--train-size",
         type=int,
-        default=64,
+        default=16,
         help="Number of samples to use per class as metatraining context.",
     )
 
@@ -482,7 +485,7 @@ def get_metatraining_argparser():
         "--validation-test-set-size",
         type=int,
         default=512,
-        help="Number of datapoints sampled as test data during evaluation through finetuning on the validation tasks.",
+        help="Maximum number of datapoints sampled as test data during evaluation through finetuning on the validation tasks.",
     )
 
     parser.add_argument(
