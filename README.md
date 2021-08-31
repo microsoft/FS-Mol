@@ -20,12 +20,12 @@ This repository contains data and code for FS-Mol: A Few-Shot Learning Dataset o
 
 1. Clone or download this repository
 2. Install dependencies
+
    ```
    cd FS-Mol
 
    conda env create -f environment.yml
    conda activate fsmol
-
    ```
 
 The code for the Molecule Attention Transformer baseline is added as a submodule of this repository. Hence, in order to be able to run MAT, one has to clone our repository via `git clone --recurse-submodules`. Alternatively, one can first clone our repository normally, and then set up submodules via `git submodule update --init`. If the MAT submodule is not set up, all the other parts of our repository should continue to work.
