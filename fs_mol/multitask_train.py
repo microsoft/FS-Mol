@@ -15,7 +15,6 @@ from pyprojroot import here as project_root
 sys.path.insert(0, str(project_root()))
 
 from fs_mol.data import (
-    NUM_EDGE_TYPES,
     NUM_NODE_FEATURES,
     DataFold,
     FSMolDataset,
