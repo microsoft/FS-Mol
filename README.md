@@ -68,7 +68,7 @@ More details and examples of how to use `FSMolDataset` are available in `fs_mol/
 We have provided an implementation of the FS-Mol evaluation methodology in `fs_mol.utils.eval_utils.eval_model()`.
 This is a framework-agnostic python method, and we demonstrate how to use it for evaluating a new model in detail in `notebooks/evaluation.ipynb`.
 
-Note that our baseline test scripts (`fs_mol/baseline_test.py`, `fs_mol/maml_test.py`, `fs_mol/mat_test`, `fs_mol/multitask_test.py` and `fs_mol/protonet_test.py`) use this method as well and can serve as examoles on how to integrate per-task fine-tuning in TensorFlow (`maml_test.py`), fine-tuning in PyTorch (`mat_test.py`) and single-task training for scikit-learn models (`baseline_test.py`).
+Note that our baseline test scripts (`fs_mol/baseline_test.py`, `fs_mol/maml_test.py`, `fs_mol/mat_test`, `fs_mol/multitask_test.py` and `fs_mol/protonet_test.py`) use this method as well and can serve as examples on how to integrate per-task fine-tuning in TensorFlow (`maml_test.py`), fine-tuning in PyTorch (`mat_test.py`) and single-task training for scikit-learn models (`baseline_test.py`).
 
 ## Baseline Model Implementations
 
