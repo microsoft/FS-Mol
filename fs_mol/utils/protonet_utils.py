@@ -1,4 +1,5 @@
 import logging
+import itertools
 import os
 import sys
 from dataclasses import dataclass
@@ -10,11 +11,19 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
-from fs_mol.data.fsmol_dataset import DataFold, FSMolDataset
-from fs_mol.data.protonet import ProtoNetBatch, get_protonet_task_sample_iterable
+from fs_mol.data import FSMolDataset, FSMolTaskSample
+from fs_mol.data.fsmol_dataset import DataFold
+from fs_mol.data.protonet import (
+    ProtoNetBatch,
+    get_protonet_task_sample_iterable,
+    get_protonet_batcher,
+    task_sample_to_pn_task_sample,
+)
 from fs_mol.models.protonet import PrototypicalNetwork, PrototypicalNetworkConfig
+from fs_mol.models.abstract_torch_fsmol_model import MetricType
 from fs_mol.utils.metrics import BinaryEvalMetrics, compute_binary_task_metrics, avg_metrics_list
 from fs_mol.utils.metric_logger import MetricLogger
+from fs_mol.utils.test_utils import eval_model
 
 
 logger = logging.getLogger(__name__)
@@ -73,6 +82,59 @@ def run_on_batches(
 
     # we will report loss per sample as before.
     return total_loss.cpu().item() / total_num_samples, metrics
+
+
+def validate_by_finetuning_on_tasks(
+    model: PrototypicalNetwork,
+    dataset: FSMolDataset,
+    seed: int = 0,
+    aml_run=None,
+    metric_to_use: MetricType = "avg_precision",
+) -> float:
+    """
+    Validation function for prototypical networks. Similar to test function;
+    each validation task is used to evaluate the model more than once, the
+    final results are a mean value for all tasks over the requested metric.
+    """
+
+    batcher = get_protonet_batcher(max_num_graphs=model.config.batch_size)
+
+    def test_model_fn(
+        task_sample: FSMolTaskSample, temp_out_folder: str, seed: int
+    ) -> BinaryEvalMetrics:
+        pn_task_sample = task_sample_to_pn_task_sample(task_sample, batcher)
+
+        _, result_metrics = run_on_batches(
+            model,
+            batches=pn_task_sample.batches,
+            batch_labels=pn_task_sample.batch_labels,
+            train=False,
+        )
+        logger.info(
+            f"{pn_task_sample.task_name}:"
+            f" {pn_task_sample.num_support_samples:3d} support samples,"
+            f" {pn_task_sample.num_query_samples:3d} query samples."
+            f" Avg. prec. {result_metrics.avg_precision:.5f}.",
+        )
+
+        return result_metrics
+
+    task_results = eval_model(
+        test_model_fn=test_model_fn,
+        dataset=dataset,
+        train_set_sample_sizes=[16, 128],
+        test_size_or_ratio=model.config.query_set_size,
+        fold=DataFold.VALIDATION,
+        num_samples=3,
+        seed=seed,
+    )
+
+    mean_metrics = avg_metrics_list(list(itertools.chain(*task_results.values())))
+    if aml_run is not None:
+        for metric_name, (metric_mean, _) in mean_metrics.items():
+            aml_run.log(f"valid_task_test_{metric_name}", float(metric_mean))
+
+    return mean_metrics[metric_to_use][0]
 
 
 class PrototypicalNetworkTrainer(PrototypicalNetwork):
@@ -200,46 +262,22 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
             )
 
             if step % self.config.validate_every_num_steps == 0:
-                valid_task_sample_iterable = get_protonet_task_sample_iterable(
-                    dataset=dataset,
-                    data_fold=DataFold.VALIDATION,
-                    num_samples=1,
-                    max_num_graphs=self.config.batch_size,
-                    support_size=self.config.support_set_size,
-                    query_size=self.config.query_set_size,
-                )
 
-                valid_losses: List[float] = []
-                valid_metrics: List[BinaryEvalMetrics] = []
-                for task_sample in valid_task_sample_iterable:
-                    task_loss, task_metrics = run_on_batches(
-                        self,
-                        task_sample.batches,
-                        batch_labels=task_sample.batch_labels,
-                        train=False,
-                    )
-                    valid_losses.append(task_loss)
-                    valid_metrics.append(task_metrics)
-                mean_valid_loss = np.mean(valid_losses)
-                avg_valid_metrics = avg_metrics_list(valid_metrics)
-
-                valid_avg_prec_mean, valid_avg_prec_std = avg_valid_metrics["avg_precision"]
+                valid_metric = validate_by_finetuning_on_tasks(self, dataset)
 
                 if aml_run:
                     # printing some measure of loss on all validation tasks.
-                    aml_run.log(f"valid_mean_loss", mean_valid_loss)
-                    aml_run.log(f"valid_mean_avg_prec", valid_avg_prec_mean)
-                    aml_run.log(f"valid_mean_kappa", avg_valid_metrics["kappa"][0])
+                    aml_run.log(f"valid_mean_avg_prec", valid_metric)
 
                 logger.info(
                     f"Validated at train step [{step}/{self.config.num_train_steps}],"
-                    f" Valid Loss: {mean_valid_loss:.7f},"
-                    f" Valid Avg. Prec.: {valid_avg_prec_mean:.3f}+/-{valid_avg_prec_std:.3f}",
+                    f" Valid Avg. Prec.: {valid_metric:.3f}",
                 )
 
                 # save model if validation avg prec is the best so far
-                if valid_avg_prec_mean > best_validation_avg_prec:
-                    best_validation_avg_prec = valid_avg_prec_mean
+                # if valid_avg_prec_mean > best_validation_avg_prec:
+                if valid_metric > best_validation_avg_prec:
+                    best_validation_avg_prec = valid_metric
                     model_path = os.path.join(out_dir, "best_validation.pt")
                     self.save_model(model_path)
                     logger.info(f"Updated {model_path} to new best model at train step {step}")
