@@ -1,6 +1,7 @@
 import argparse
 import logging
 import sys
+import json
 
 import torch
 from pyprojroot import here as project_root
@@ -70,6 +71,26 @@ def parse_command_line():
         default=50,
         help="Number of training steps between model validations.",
     )
+    parser.add_argument(
+        "--validation-support-set-sizes",
+        type=json.loads,
+        default=[16, 128],
+        help="JSON list selecting the number of datapoints sampled as support set data during evaluation through finetuning on the validation tasks.",
+    )
+
+    parser.add_argument(
+        "--validation-query-set-size",
+        type=int,
+        default=256,
+        help="Maximum number of datapoints sampled as query data during evaluation through finetuning on the validation tasks.",
+    )
+
+    parser.add_argument(
+        "--validation-num-samples",
+        type=int,
+        default=5,
+        help="Number of samples considered for each train set size for each validation task during evaluation through finetuning.",
+    )
     parser.add_argument("--lr", type=float, default=0.0001, help="Learning rate")
     parser.add_argument(
         "--clip-value", type=float, default=1.0, help="Gradient norm clipping value"
@@ -87,6 +108,9 @@ def make_trainer_config(args: argparse.Namespace) -> PrototypicalNetworkTrainerC
         support_set_size=args.support_set_size,
         query_set_size=args.query_set_size,
         validate_every_num_steps=args.validate_every,
+        validation_support_set_sizes=tuple(args.validation_support_set_sizes),
+        validation_query_set_size=args.validation_query_set_size,
+        validation_num_samples=args.validation_num_samples,
         num_train_steps=args.num_train_steps,
         learning_rate=args.lr,
         clip_value=args.clip_value,

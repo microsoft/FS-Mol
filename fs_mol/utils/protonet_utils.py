@@ -38,6 +38,9 @@ class PrototypicalNetworkTrainerConfig(PrototypicalNetworkConfig):
 
     num_train_steps: int = 10000
     validate_every_num_steps: int = 50
+    validation_support_set_sizes: Tuple[int] = (16, 128)
+    validation_query_set_size: int = 256
+    validation_num_samples: int = 5
 
     learning_rate: float = 0.001
     clip_value: Optional[float] = None
@@ -122,10 +125,10 @@ def validate_by_finetuning_on_tasks(
     task_results = eval_model(
         test_model_fn=test_model_fn,
         dataset=dataset,
-        train_set_sample_sizes=[16, 128],
-        test_size_or_ratio=model.config.query_set_size,
+        train_set_sample_sizes=model.config.validation_support_set_sizes,
+        test_size_or_ratio=model.config.validation_query_set_size,
         fold=DataFold.VALIDATION,
-        num_samples=3,
+        num_samples=model.config.validation_num_samples,
         seed=seed,
     )
 
