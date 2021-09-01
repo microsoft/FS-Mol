@@ -292,7 +292,6 @@ def main():
             max_num_graphs=args.batch_size,
         ),
         valid_fn=valid_fn,
-        output_folder=out_dir,
         metric_to_use=args.metric_to_use,
         max_num_epochs=args.num_epochs,
         patience=args.patience,
