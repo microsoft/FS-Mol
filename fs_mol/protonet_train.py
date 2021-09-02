@@ -81,7 +81,7 @@ def parse_command_line():
     parser.add_argument(
         "--validation-query-set-size",
         type=int,
-        default=256,
+        default=512,
         help="Maximum number of datapoints sampled as query data during evaluation through finetuning on the validation tasks.",
     )
 
