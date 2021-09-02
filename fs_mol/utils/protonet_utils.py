@@ -1,5 +1,4 @@
 import logging
-import itertools
 import os
 import sys
 from dataclasses import dataclass
@@ -21,7 +20,12 @@ from fs_mol.data.protonet import (
 )
 from fs_mol.models.protonet import PrototypicalNetwork, PrototypicalNetworkConfig
 from fs_mol.models.abstract_torch_fsmol_model import MetricType
-from fs_mol.utils.metrics import BinaryEvalMetrics, compute_binary_task_metrics, avg_metrics_list
+from fs_mol.utils.metrics import (
+    BinaryEvalMetrics,
+    compute_binary_task_metrics,
+    avg_metrics_over_tasks,
+    avg_task_metrics_list,
+)
 from fs_mol.utils.metric_logger import MetricLogger
 from fs_mol.utils.test_utils import eval_model, FSMolTaskSampleEvalResults
 
@@ -158,7 +162,8 @@ def validate_by_finetuning_on_tasks(
         aml_run=aml_run,
     )
 
-    mean_metrics = avg_metrics_list(list(itertools.chain(*task_results.values())))
+    # take the dictionary of task_results and return correct mean over all tasks
+    mean_metrics = avg_metrics_over_tasks(task_results)
     if aml_run is not None:
         for metric_name, (metric_mean, _) in mean_metrics.items():
             aml_run.log(f"valid_task_test_{metric_name}", float(metric_mean))
@@ -282,7 +287,7 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
             self.optimizer.step()
 
             task_batch_mean_loss = np.mean(task_batch_losses)
-            task_batch_avg_metrics = avg_metrics_list(task_batch_metrics)
+            task_batch_avg_metrics = avg_task_metrics_list(task_batch_metrics)
             metric_logger.log_metrics(
                 loss=task_batch_mean_loss,
                 avg_prec=task_batch_avg_metrics["avg_precision"][0],
@@ -292,7 +297,7 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
 
             if step % self.config.validate_every_num_steps == 0:
 
-                valid_metric = validate_by_finetuning_on_tasks(self, dataset)
+                valid_metric = validate_by_finetuning_on_tasks(self, dataset, aml_run=aml_run)
 
                 if aml_run:
                     # printing some measure of loss on all validation tasks.

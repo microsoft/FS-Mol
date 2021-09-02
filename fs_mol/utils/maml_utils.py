@@ -20,7 +20,7 @@ from fs_mol.utils.logging import PROGRESS_LOG_LEVEL, restrict_console_log_level
 from fs_mol.utils.metrics import (
     BinaryEvalMetrics,
     BinaryMetricType,
-    avg_metrics_list,
+    avg_metrics_over_tasks,
     compute_binary_task_metrics,
 )
 from fs_mol.utils.test_utils import eval_model
@@ -235,7 +235,7 @@ def eval_model_by_finetuning_on_tasks(
         seed=seed,
     )
 
-    mean_metrics = avg_metrics_list(list(itertools.chain(*task_to_results.values())))
+    mean_metrics = avg_metrics_over_tasks(task_to_results)
     if aml_run is not None:
         for metric_name, (metric_mean, _) in mean_metrics.items():
             aml_run.log(f"valid_task_test_{metric_name}", float(metric_mean))
