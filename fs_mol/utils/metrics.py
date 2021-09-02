@@ -1,6 +1,6 @@
 import dataclasses
 import itertools
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Union
 from typing_extensions import Literal
 from dataclasses import dataclass
 
@@ -67,12 +67,15 @@ def avg_metrics_over_tasks(
     # not in BinaryEvalMetrics is unused here.
     aggregated_metrics = {}
     for (task, results) in task_results.items():
+        # this returns, for each task, a dictionary of aggregated results
         aggregated_metrics[task] = avg_task_metrics_list(results)
 
     return avg_task_metrics_list(list(itertools.chain(*aggregated_metrics.values())))
 
 
-def avg_task_metrics_list(results: List[BinaryEvalMetrics]) -> Dict[str, Tuple[float, float]]:
+def avg_task_metrics_list(
+    results: List[Union[BinaryEvalMetrics, Dict[str, float]]]
+) -> Dict[str, Tuple[float, float]]:
     aggregated_metrics = {}
 
     # Compute mean/std:

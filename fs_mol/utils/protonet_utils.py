@@ -271,7 +271,7 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
 
             if step % self.config.validate_every_num_steps == 0:
 
-                valid_metric = validate_by_finetuning_on_tasks(self, dataset)
+                valid_metric = validate_by_finetuning_on_tasks(self, dataset, aml_run=aml_run)
 
                 if aml_run:
                     # printing some measure of loss on all validation tasks.
