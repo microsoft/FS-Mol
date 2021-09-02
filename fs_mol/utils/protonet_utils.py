@@ -27,7 +27,7 @@ from fs_mol.utils.metrics import (
     avg_task_metrics_list,
 )
 from fs_mol.utils.metric_logger import MetricLogger
-from fs_mol.utils.test_utils import eval_model
+from fs_mol.utils.test_utils import eval_model, FSMolTaskSampleEvalResults
 
 
 logger = logging.getLogger(__name__)
@@ -91,20 +91,19 @@ def run_on_batches(
     return total_loss.cpu().item() / total_num_samples, metrics
 
 
-def validate_by_finetuning_on_tasks(
+def evaluate_protonet_model(
     model: PrototypicalNetwork,
     dataset: FSMolDataset,
+    support_sizes: List[int] = [16, 128],
+    num_samples: int = 5,
     seed: int = 0,
-    aml_run=None,
-    metric_to_use: MetricType = "avg_precision",
-) -> float:
-    """
-    Validation function for prototypical networks. Similar to test function;
-    each validation task is used to evaluate the model more than once, the
-    final results are a mean value for all tasks over the requested metric.
-    """
+    batch_size: int = 320,
+    query_size: Optional[int] = None,
+    data_fold: DataFold = DataFold.TEST,
+    save_dir: Optional[str] = None,
+) -> Dict[str, List[FSMolTaskSampleEvalResults]]:
 
-    batcher = get_protonet_batcher(max_num_graphs=model.config.batch_size)
+    batcher = get_protonet_batcher(max_num_graphs=batch_size)
 
     def test_model_fn(
         task_sample: FSMolTaskSample, temp_out_folder: str, seed: int
@@ -126,14 +125,41 @@ def validate_by_finetuning_on_tasks(
 
         return result_metrics
 
-    task_results = eval_model(
+    return eval_model(
         test_model_fn=test_model_fn,
         dataset=dataset,
-        train_set_sample_sizes=model.config.validation_support_set_sizes,
-        test_size_or_ratio=model.config.validation_query_set_size,
-        fold=DataFold.VALIDATION,
+        train_set_sample_sizes=support_sizes,
+        out_dir=save_dir,
+        num_samples=num_samples,
+        test_size_or_ratio=query_size,
+        fold=data_fold,
+        seed=seed,
+    )
+
+
+def validate_by_finetuning_on_tasks(
+    model: PrototypicalNetwork,
+    dataset: FSMolDataset,
+    seed: int = 0,
+    aml_run=None,
+    metric_to_use: MetricType = "avg_precision",
+) -> float:
+    """
+    Validation function for prototypical networks. Similar to test function;
+    each validation task is used to evaluate the model more than once, the
+    final results are a mean value for all tasks over the requested metric.
+    """
+
+    task_results = evaluate_protonet_model(
+        model,
+        dataset,
+        support_sizes=model.config.validation_support_set_sizes,
         num_samples=model.config.validation_num_samples,
         seed=seed,
+        batch_size=model.config.batch_size,
+        query_size=model.config.validation_query_set_size,
+        data_fold=DataFold.VALIDATION,
+        aml_run=aml_run,
     )
 
     # take the dictionary of task_results and return correct mean over all tasks

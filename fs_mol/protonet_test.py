@@ -8,13 +8,14 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
-from fs_mol.data import FSMolDataset, FSMolTaskSample
-from fs_mol.data.protonet import get_protonet_batcher, task_sample_to_pn_task_sample
+from fs_mol.data import FSMolDataset
 from fs_mol.models.abstract_torch_fsmol_model import resolve_starting_model_file
 from fs_mol.models.protonet import PrototypicalNetwork
-from fs_mol.utils.protonet_utils import PrototypicalNetworkTrainer, run_on_batches
-from fs_mol.utils.metrics import BinaryEvalMetrics
-from fs_mol.utils.test_utils import eval_model, add_eval_cli_args, set_up_test_run
+from fs_mol.utils.protonet_utils import (
+    PrototypicalNetworkTrainer,
+    evaluate_protonet_model,
+)
+from fs_mol.utils.test_utils import add_eval_cli_args, set_up_test_run
 
 
 logger = logging.getLogger(__name__)
@@ -58,35 +59,19 @@ def test(
     seed: int,
     batch_size: int,
 ):
-    batcher = get_protonet_batcher(max_num_graphs=batch_size)
+    """
+    Same procedure as validation for prototypical networks. Each validation task is used to
+    evaluate the model more than once, dependent on number of context sizes and samples.
+    """
 
-    def test_model_fn(
-        task_sample: FSMolTaskSample, temp_out_folder: str, seed: int
-    ) -> BinaryEvalMetrics:
-        pn_task_sample = task_sample_to_pn_task_sample(task_sample, batcher)
-
-        _, result_metrics = run_on_batches(
-            model,
-            batches=pn_task_sample.batches,
-            batch_labels=pn_task_sample.batch_labels,
-            train=False,
-        )
-        logger.info(
-            f"{pn_task_sample.task_name}:"
-            f" {pn_task_sample.num_support_samples:3d} support samples,"
-            f" {pn_task_sample.num_query_samples:3d} query samples."
-            f" Avg. prec. {result_metrics.avg_precision:.5f}.",
-        )
-
-        return result_metrics
-
-    return eval_model(
-        test_model_fn=test_model_fn,
-        dataset=dataset,
-        train_set_sample_sizes=context_sizes,
-        out_dir=save_dir,
+    return evaluate_protonet_model(
+        model,
+        dataset,
+        support_sizes=context_sizes,
         num_samples=num_samples,
         seed=seed,
+        batch_size=batch_size,
+        save_dir=save_dir,
     )
 
 
