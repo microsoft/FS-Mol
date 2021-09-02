@@ -278,7 +278,6 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
                 )
 
                 # save model if validation avg prec is the best so far
-                # if valid_avg_prec_mean > best_validation_avg_prec:
                 if valid_metric > best_validation_avg_prec:
                     best_validation_avg_prec = valid_metric
                     model_path = os.path.join(out_dir, "best_validation.pt")
