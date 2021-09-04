@@ -81,7 +81,6 @@ def validate_by_finetuning_on_tasks(
                 current_model_path,
                 model_cls=GNNMolFiLMModel,
                 task_sample=task_sample,
-                temp_out_folder=temp_out_folder,
                 batcher=get_multitask_inference_batcher(max_num_graphs=batch_size),
                 learning_rate=learning_rate,
                 task_specific_learning_rate=task_specific_learning_rate,
@@ -210,7 +209,7 @@ def make_model_from_args(
         readout_type=args.readout_type,
         readout_use_only_last_timestep=not args.readout_use_all_states,
         num_tail_layers=args.num_tail_layers,
-        use_init_film=args.use_init_film, 
+        use_init_film=args.use_init_film,
         use_tail_task_emb=args.use_tail_task_embedding,
     )
     model = create_model(model_config, device=device)

@@ -19,6 +19,7 @@ from fs_mol.modules.task_specific_modules import (
 
 SMALL_NUMBER = 1e-7
 
+
 class FiLMRelationalMP(nn.Module):
     """Relational message passing, using different message functions for each relation/edge
     type."""
@@ -40,6 +41,8 @@ class FiLMRelationalMP(nn.Module):
         self.message_fns = nn.ModuleList()
         self.message_film_layers = nn.ModuleList()
 
+        self.use_msg_film = use_msg_film
+
         for _ in range(num_edge_types):
             self.message_fns.append(
                 MLP(
@@ -48,8 +51,10 @@ class FiLMRelationalMP(nn.Module):
                     hidden_layer_dims=[2 * hidden_dim] * (message_function_depth - 1),
                 )
             )
-            if use_msg_film:
-                assert task_embedding_provider is not None, "A task embedding provider must be available for using message-passing FiLM layers"
+            if self.use_msg_film:
+                assert (
+                    task_embedding_provider is not None
+                ), "A task embedding provider must be available for using message-passing FiLM layers"
                 self.message_film_layers.append(
                     TaskEmbeddingFiLMLayer(task_embedding_provider, msg_dim)
                 )
@@ -254,13 +259,17 @@ class FiLMRelationalMultiHeadAttentionMP(nn.Module):
                 )
             )
             if use_msg_film:
-                assert task_embedding_provider is not None, "A task embedding provider must be available for using message-passing FiLM layers"
+                assert (
+                    task_embedding_provider is not None
+                ), "A task embedding provider must be available for using message-passing FiLM layers"
                 self.message_film_layers.append(
                     TaskEmbeddingFiLMLayer(task_embedding_provider, per_head_dim * num_heads)
                 )
-        
+
         if use_msg_att_film:
-            assert task_embedding_provider is not None, "A task embedding provider must be available for using FiLM on query layers."
+            assert (
+                task_embedding_provider is not None
+            ), "A task embedding provider must be available for using FiLM on query layers."
             self.query_node_films: Optional[nn.ModuleList] = nn.ModuleList()
             for _ in range(num_edge_types):
                 self.query_node_films.append(
@@ -384,7 +393,9 @@ class FiLMGNNBlock(nn.Module):
     ReZero' (with \alpha a vector instead of scalar): https://arxiv.org/pdf/2103.17239.pdf
     """
 
-    def __init__(self, config: FiLMGNNConfig, task_embedding_provider: Optional[TaskEmbeddingLayerProvider]):
+    def __init__(
+        self, config: FiLMGNNConfig, task_embedding_provider: Optional[TaskEmbeddingLayerProvider]
+    ):
         super().__init__()
         self.config = config
 
@@ -524,13 +535,14 @@ class FiLMGNN(nn.Module):
     def __init__(
         self,
         config: FiLMGNNConfig,
+        task_embedding_provider: Optional[TaskEmbeddingLayerProvider] = None,
     ):
         super().__init__()
         self.config = config
 
         self.gnn_blocks = nn.ModuleList()
         for _ in range(config.num_layers):
-            self.gnn_blocks.append(FiLMGNNBlock(config))
+            self.gnn_blocks.append(FiLMGNNBlock(config, task_embedding_provider))
 
     def forward(self, node_features, adj_lists, node_to_task) -> List[torch.Tensor]:
         """

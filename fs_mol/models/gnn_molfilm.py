@@ -19,7 +19,7 @@ from fs_mol.modules.task_specific_modules import (
     ProjectedTaskEmbeddingLayerProvider,
     TaskEmbeddingFiLMLayer,
     LearnedTaskEmbeddingLayerProvider,
-    )
+)
 
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,9 @@ class GNNMolFiLMModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
             self.init_node_film_layer = None
 
         # Central GNN component
-        self.gnn = FiLMGNN(self.config.gnn_config)
+        self.gnn = FiLMGNN(
+            self.config.gnn_config, task_embedding_provider=self.task_embedding_provider
+        )
 
         # Set up for readout last or intermediate timesteps in GNN
         if config.readout_use_only_last_timestep:
@@ -113,9 +115,13 @@ class GNNMolFiLMModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
             )
 
         # Option to concatenate the embedding of the tasks to the mol representations
-        # prior to passing through the tail mlp. 
+        # prior to passing through the tail mlp.
         if config.use_tail_task_emb:
-            self.tail_task_embedding: Optional[nn.Module] = self.task_embedding_provider.get_task_embedding_layer(embedding_dim=config.readout_dim)
+            self.tail_task_embedding: Optional[
+                nn.Module
+            ] = self.task_embedding_provider.get_task_embedding_layer(
+                embedding_dim=config.readout_dim
+            )
             # the tail MLP needs to accept twice the inputs now
             # (note, config.readout_dim is updated to 4 * gnn.hidden_dim if it was not set in defaults)
             self.mol_representation_dim = 2 * config.readout_dim
@@ -138,6 +144,8 @@ class GNNMolFiLMModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
         return super().to(device)
 
     def reinitialize_task_parameters(self, new_num_tasks: Optional[int] = None):
+        self.task_embedding_provider.reinitialize_task_parameters(new_num_tasks)
+
         self.tail_mlp = self.__create_tail_MLP(new_num_tasks or self.config.num_outputs)
 
     def forward(self, batch: FSMolMultitaskBatch):
@@ -169,7 +177,9 @@ class GNNMolFiLMModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
 
         # set up inputs specifically necessary for FiLM layers
         if batch.sample_to_task_id is not None:
-            sample_to_task = torch.tensor(batch.sample_to_task_id, dtype=torch.long, device=self.device)
+            sample_to_task = torch.tensor(
+                batch.sample_to_task_id, dtype=torch.long, device=self.device
+            )
             # make a single node to task map (TODO: change FiLM components to accept batch.node_to_graph map)
             node_to_task: Optional[torch.Tensor] = sample_to_task[batch.node_to_graph]
         else:
@@ -188,7 +198,9 @@ class GNNMolFiLMModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
             initial_node_features = self.init_node_film_layer(initial_node_features, node_to_task)
 
         # ----- Message passing layers:
-        all_node_representations = self.gnn(initial_node_features, batch.adjacency_lists, node_to_task)
+        all_node_representations = self.gnn(
+            initial_node_features, batch.adjacency_lists, node_to_task
+        )
 
         # ----- Readout phase:
         if self.config.readout_use_only_last_timestep:
@@ -201,8 +213,10 @@ class GNNMolFiLMModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
         # ----- Tail phase
         # ----- If we are using the task embeddings, concatenate with mol representations
         if self.tail_task_embedding is not None:
-            mol_representations = torch.cat((mol_representations, self.tail_task_embedding(sample_to_task)), axis = 1)
-        
+            mol_representations = torch.cat(
+                (mol_representations, self.tail_task_embedding(sample_to_task)), axis=1
+            )
+
         # ----- Then apply the tail MLP
         mol_predictions = self.tail_mlp(mol_representations)
 
@@ -219,7 +233,9 @@ class GNNMolFiLMModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
         }
 
     def is_param_task_specific(self, param_name: str) -> bool:
-        return param_name.startswith("tail_mlp.")
+        return param_name.startswith("tail_mlp.") or param_name.startswith(
+            "task_embedding_provider"
+        )
 
     def load_model_state(
         self,
