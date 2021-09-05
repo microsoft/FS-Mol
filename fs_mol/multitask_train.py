@@ -80,7 +80,6 @@ def validate_by_finetuning_on_tasks(
                 current_model_path,
                 model_cls=GNNMultitaskModel,
                 task_sample=task_sample,
-                temp_out_folder=temp_out_folder,
                 batcher=get_multitask_inference_batcher(max_num_graphs=batch_size),
                 learning_rate=learning_rate,
                 task_specific_learning_rate=task_specific_learning_rate,
