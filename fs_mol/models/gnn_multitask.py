@@ -95,6 +95,8 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
                 out_dim=config.readout_dim,
                 num_heads=config.readout_num_heads,
                 head_dim=config.readout_head_dim,
+                task_embedding_provider=self.task_embedding_provider,
+                use_task_specific_scores=self.config.readout_type.endswith("_task"),
             )
         elif "weighted" in config.readout_type:
             self.readout = MultiHeadWeightedGraphReadout(
@@ -103,6 +105,7 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
                 num_heads=config.readout_num_heads,
                 head_dim=config.readout_head_dim,
                 weighting_type=config.readout_type,
+                task_embedding_provider=self.task_embedding_provider,
             )
         else:
             self.readout = UnweightedGraphReadout(
