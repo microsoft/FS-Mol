@@ -14,5 +14,5 @@ steps:
     git checkout -b ${BRANCH_NAME}/merged
     git reset --hard internal/main
     git reset --hard internal/${BRANCH_NAME} || true
-    git merge ${BRANCH_NAME} -m "Auto-merge of github branch ${BRANCH_NAME}"
+    git merge origin/${BRANCH_NAME} -m "Auto-merge of github branch ${BRANCH_NAME}"
     git push internal ${BRANCH_NAME}/merged:${BRANCH_NAME}
