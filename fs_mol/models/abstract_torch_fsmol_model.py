@@ -351,6 +351,9 @@ def train_loop(
         valid_metric = valid_fn(model)
         logger.log(log_level, f"  Validation metric: {valid_metric:.5f}")
 
+        if aml_run is not None:
+            aml_run.log("valid_metric", valid_metric)
+
         if valid_metric > best_valid_metric:
             logger.log(
                 log_level,
