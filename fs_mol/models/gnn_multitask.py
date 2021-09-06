@@ -81,7 +81,7 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
             self.init_node_film_layer = None
 
         # GNN
-        self.gnn = GNN(self.config.gnn_config)
+        self.gnn = GNN(self.config.gnn_config, self.task_embedding_provider)
 
         if config.readout_use_only_last_timestep:
             readout_node_dim = config.gnn_config.hidden_dim
