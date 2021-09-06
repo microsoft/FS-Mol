@@ -27,6 +27,7 @@ from torch import nn
 Task embedding layers
 """
 
+
 class TaskEmbeddingLayer(nn.Module, ABC):
     """Abstract superclass of layers that map a list of task IDs to a vector representation."""
 
@@ -169,7 +170,9 @@ class ProjectedTaskEmbeddingLayer(TaskEmbeddingLayer):
             task_embeddings += self.target_mean
         return task_embeddings
 
-#--------------------------------defining Linear layers for task embeddings----------------------------------------------
+
+# --------------------------------defining Linear layers for task embeddings----------------------------------------------
+
 
 class TaskSpecificLinear(nn.Module):
     def __init__(
@@ -297,7 +300,9 @@ class ProjectedTaskSpecificLinear(TaskSpecificLinear):
         """See superclass."""
         return self._per_task_matrices[task_ids]
 
-#--------------------------------Task Embedding Providers (to be called in overall model)-------------------------------
+
+# --------------------------------Task Embedding Providers (to be called in overall model)-------------------------------
+
 
 class TaskEmbeddingLayerProvider(nn.Module, ABC):
     """Abstract superclass of utility classes that provide `TaskEmbeddingLayer`s when

@@ -556,7 +556,7 @@ class FiLMGNN(nn.Module):
         """
 
         # First check if we got what we needed:
-        if node_to_task is None and self.config.use_msg_film or self.config.use_msg_att_film:
+        if node_to_task is None and (self.config.use_msg_film or self.config.use_msg_att_film):
             raise ValueError(
                 f"Using FiLM/task embeddings requires passing in the node_to_task map!"
             )

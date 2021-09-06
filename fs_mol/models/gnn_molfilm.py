@@ -233,8 +233,10 @@ class GNNMolFiLMModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
         }
 
     def is_param_task_specific(self, param_name: str) -> bool:
-        return param_name.startswith("tail_mlp.") or param_name.startswith(
-            "task_embedding_provider"
+        return (
+            param_name.endswith(".task_emb.weight")
+            or param_name.endswith("._per_task_matrices")
+            or param_name.startswith("tail_mlp.")
         )
 
     def load_model_state(
