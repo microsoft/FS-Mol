@@ -1,5 +1,4 @@
 import argparse
-import itertools
 import logging
 import os
 import pdb
@@ -42,7 +41,7 @@ from fs_mol.models.gnn_multitask import (
 )
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
 from fs_mol.utils.metrics import (
-    avg_metrics_list,
+    avg_metrics_over_tasks,
     BinaryEvalMetrics,
 )
 from fs_mol.utils.test_utils import eval_model
@@ -81,7 +80,6 @@ def validate_by_finetuning_on_tasks(
                 current_model_path,
                 model_cls=GNNMultitaskModel,
                 task_sample=task_sample,
-                temp_out_folder=temp_out_folder,
                 batcher=get_multitask_inference_batcher(max_num_graphs=batch_size),
                 learning_rate=learning_rate,
                 task_specific_learning_rate=task_specific_learning_rate,
@@ -102,7 +100,7 @@ def validate_by_finetuning_on_tasks(
             seed=seed,
         )
 
-        mean_metrics = avg_metrics_list(list(itertools.chain(*task_to_results.values())))
+        mean_metrics = avg_metrics_over_tasks(task_to_results)
         if aml_run is not None:
             for metric_name, (metric_mean, _) in mean_metrics.items():
                 aml_run.log(f"valid_task_test_{metric_name}", float(metric_mean))

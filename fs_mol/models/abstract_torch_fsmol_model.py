@@ -37,7 +37,7 @@ from fs_mol.data import (
 from fs_mol.utils.logging import PROGRESS_LOG_LEVEL
 from fs_mol.utils.metric_logger import MetricLogger
 from fs_mol.utils.metrics import (
-    avg_metrics_list,
+    avg_task_metrics_list,
     compute_metrics,
     BinaryEvalMetrics,
     BinaryMetricType,
@@ -301,7 +301,7 @@ def validate_on_data_iterable(
     if not quiet:
         logger.info(f"  Validation loss: {valid_loss:.5f}")
     # If our data_iterable had more than one task, we'll have one result per task - average them:
-    mean_valid_metrics = avg_metrics_list(list(valid_metrics.values()))
+    mean_valid_metrics = avg_task_metrics_list(list(valid_metrics.values()))
     if metric_to_use == "loss":
         return -valid_loss  # We are maximising things elsewhere, so flip the sign on the loss
     else:
