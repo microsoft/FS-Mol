@@ -149,7 +149,18 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         "--readout_type",
         type=str,
         default="combined",
-        choices=["sum", "min", "max", "mean", "weighted_sum", "weighted_mean", "combined"],
+        choices=[
+            "sum",
+            "min",
+            "max",
+            "mean",
+            "weighted_sum",
+            "weighted_mean",
+            "task_weighted_sum",
+            "task_weighted_mean",
+            "combined",
+            "combined_task",
+        ],
         help="Readout used to summarise atoms into a molecule",
     )
     parser.add_argument(
