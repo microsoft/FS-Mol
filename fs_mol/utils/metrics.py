@@ -69,20 +69,23 @@ def avg_metrics_over_tasks(
         # this returns, for each task, a dictionary of aggregated results
         aggregated_metrics[task] = avg_task_metrics_list(results)
 
-    return avg_task_metrics_list(list(aggregated_metrics.values()))
+    # compute the mean and std across tasks by going through values (drop within task stds)
+    aggregated_over_tasks = {}
+    for metric_field in dataclasses.fields(BinaryEvalMetrics):
+        metric_values = [x.get(metric_field.name)[0] for _, x in aggregated_metrics.items()]
+        aggregated_over_tasks[metric_field.name] = (np.mean(metric_values), np.std(metric_values))
+
+    return aggregated_over_tasks
 
 
 def avg_task_metrics_list(
-    results: List[Union[BinaryEvalMetrics, Dict[str, float]]]
+    results: List[BinaryEvalMetrics],
 ) -> Dict[str, Tuple[float, float]]:
     aggregated_metrics = {}
 
     # Compute mean/std:
     for metric_field in dataclasses.fields(BinaryEvalMetrics):
-        if isinstance(results[0], dict):
-            metric_values = [task_metrics.get(metric_field.name) for task_metrics in results]
-        else:
-            metric_values = [getattr(task_metrics, metric_field.name) for task_metrics in results]
+        metric_values = [getattr(task_metrics, metric_field.name) for task_metrics in results]
         aggregated_metrics[metric_field.name] = (np.mean(metric_values), np.std(metric_values))
 
     return aggregated_metrics
