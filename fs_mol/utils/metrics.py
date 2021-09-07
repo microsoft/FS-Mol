@@ -1,5 +1,4 @@
 import dataclasses
-import itertools
 from typing import Dict, Tuple, List, Union
 from typing_extensions import Literal
 from dataclasses import dataclass
