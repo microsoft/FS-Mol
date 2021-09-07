@@ -207,7 +207,9 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
         else:
             readout_node_reprs = torch.cat(all_node_representations, dim=-1)
 
-        mol_representations = self.readout(readout_node_reprs, node_to_graph, batch.num_graphs)
+        mol_representations = self.readout(
+            readout_node_reprs, node_to_graph, batch.num_graphs, node_to_task
+        )
 
         # ----- Tail phase
         # ----- If we are using the task embeddings, concatenate with mol representations
