@@ -265,6 +265,7 @@ class UnweightedGraphReadout(GraphReadout):
         node_embeddings: torch.Tensor,
         node_to_graph_id: torch.Tensor,
         num_graphs: int,
+        node_to_task: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         per_graph_values = scatter(
             src=node_embeddings,
