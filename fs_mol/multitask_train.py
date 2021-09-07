@@ -149,7 +149,18 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         "--readout_type",
         type=str,
         default="combined",
-        choices=["sum", "min", "max", "mean", "weighted_sum", "weighted_mean", "combined"],
+        choices=[
+            "sum",
+            "min",
+            "max",
+            "mean",
+            "weighted_sum",
+            "weighted_mean",
+            "task_weighted_sum",
+            "task_weighted_mean",
+            "combined",
+            "combined_task",
+        ],
         help="Readout used to summarise atoms into a molecule",
     )
     parser.add_argument(
@@ -159,6 +170,32 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         help="Indicates if all intermediate GNN activations or only the final ones should be used when computing a graph-level representation.",
     )
     parser.add_argument("--num_tail_layers", type=int, default=2)
+
+    # FiLM layer args
+    parser.add_argument(
+        "--use_init_film",
+        type=str2bool,
+        default=False,
+        help="Indicates if a FiLM layer should be applied in the initial projection of node features prior to message passing",
+    )
+    parser.add_argument(
+        "--use_tail_task_embedding",
+        type=str2bool,
+        default=False,
+        help="Indicates if the task embedding should be concatenated to the molecule representations prior to the final output layers.",
+    )
+    parser.add_argument(
+        "--use_message_film",
+        type=str2bool,
+        default=False,
+        help="Indicates if FiLM layers should be applied within the message passing layers",
+    )
+    parser.add_argument(
+        "--use_message_attention_film",
+        type=str2bool,
+        default=False,
+        help="Indicates if FiLM layers should be applied to the query projections of the nodes in message passing that uses attention.",
+    )
 
 
 def make_model_from_args(
@@ -176,11 +213,15 @@ def make_model_from_args(
             intermediate_dim=args.intermediate_dim,
             message_function_depth=args.message_function_depth,
             num_layers=args.num_gnn_layers,
+            use_msg_film=args.use_message_film,
+            use_msg_att_film=args.use_message_attention_film,
         ),
         num_outputs=1,
         readout_type=args.readout_type,
         readout_use_only_last_timestep=not args.readout_use_all_states,
         num_tail_layers=args.num_tail_layers,
+        use_init_film=args.use_init_film,
+        use_tail_task_emb=args.use_tail_task_embedding,
     )
     model = create_model(model_config, device=device)
     return model

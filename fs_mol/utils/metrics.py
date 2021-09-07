@@ -59,7 +59,7 @@ def compute_binary_task_metrics(predictions: List[float], labels: List[float]) -
 
 
 def avg_metrics_over_tasks(
-    task_results: Dict[str, BinaryEvalMetrics]
+    task_results: Dict[str, List[BinaryEvalMetrics]],
 ) -> Dict[str, Tuple[float, float]]:
     # average results over all tasks in input dictionary
     # the average over each task is first created
@@ -70,7 +70,7 @@ def avg_metrics_over_tasks(
         # this returns, for each task, a dictionary of aggregated results
         aggregated_metrics[task] = avg_task_metrics_list(results)
 
-    return avg_task_metrics_list(list(itertools.chain(*aggregated_metrics.values())))
+    return avg_task_metrics_list(list(aggregated_metrics.values()))
 
 
 def avg_task_metrics_list(
@@ -80,7 +80,10 @@ def avg_task_metrics_list(
 
     # Compute mean/std:
     for metric_field in dataclasses.fields(BinaryEvalMetrics):
-        metric_values = [getattr(task_metrics, metric_field.name) for task_metrics in results]
+        if isinstance(results[0], dict):
+            metric_values = [task_metrics.get(metric_field.name) for task_metrics in results]
+        else:
+            metric_values = [getattr(task_metrics, metric_field.name) for task_metrics in results]
         aggregated_metrics[metric_field.name] = (np.mean(metric_values), np.std(metric_values))
 
     return aggregated_metrics

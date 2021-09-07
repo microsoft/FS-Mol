@@ -8,6 +8,11 @@ from torch_scatter import scatter_sum, scatter_log_softmax, scatter_mean, scatte
 
 from fs_mol.modules.mlp import MLP
 
+from fs_mol.modules.task_specific_modules import (
+    TaskEmbeddingLayerProvider,
+    TaskEmbeddingFiLMLayer,
+)
+
 
 SMALL_NUMBER = 1e-7
 
@@ -41,6 +46,8 @@ class RelationalMP(nn.Module):
         msg_dim: int,
         num_edge_types: int,
         message_function_depth: int = 1,
+        task_embedding_provider: Optional[TaskEmbeddingLayerProvider] = None,
+        use_msg_film: bool = False,
     ):
         super().__init__()
         self.hidden_dim = hidden_dim
@@ -48,6 +55,9 @@ class RelationalMP(nn.Module):
         self.num_edge_types = num_edge_types
 
         self.message_fns = nn.ModuleList()
+        self.message_film_layers = nn.ModuleList()
+
+        self.use_msg_film = use_msg_film
 
         for _ in range(num_edge_types):
             self.message_fns.append(
@@ -57,6 +67,13 @@ class RelationalMP(nn.Module):
                     hidden_layer_dims=[2 * hidden_dim] * (message_function_depth - 1),
                 )
             )
+            if self.use_msg_film:
+                assert (
+                    task_embedding_provider is not None
+                ), "A task embedding provider must be available for using message-passing FiLM layers"
+                self.message_film_layers.append(
+                    TaskEmbeddingFiLMLayer(task_embedding_provider, msg_dim)
+                )
 
     @property
     def message_size(self) -> int:
@@ -66,6 +83,8 @@ class RelationalMP(nn.Module):
         self,
         x: torch.Tensor,
         adj_lists: List[torch.Tensor],
+        node_to_task: Optional[torch.Tensor] = None,
+        edge_to_task: Optional[List[torch.Tensor]] = None,
     ):
         all_msg_list: List[torch.Tensor] = []  # all messages exchanged between nodes
         all_tgts_list: List[torch.Tensor] = []  # [E] - list of targets for all messages
@@ -75,6 +94,9 @@ class RelationalMP(nn.Module):
             tgts = adj_list[:, 1]
 
             messages = self.message_fns[edge_type](torch.cat((x[srcs], x[tgts]), dim=1))
+            if self.use_msg_film and edge_to_task is not None:
+                # edge_to_task[edge_type] here is the long tensor of the relevant task ids
+                messages = self.message_film_layers[edge_type](messages, edge_to_task[edge_type])
             messages = nn.functional.relu(messages)
 
             all_msg_list.append(messages)
@@ -112,6 +134,8 @@ class RelationalMultiAggrMP(RelationalMP):
         num_edge_types: int,
         message_function_depth: int = 1,
         use_pna_scalers: bool = False,
+        task_embedding_provider: Optional[TaskEmbeddingLayerProvider] = None,
+        use_msg_film: bool = False,
     ):
         # We create 3 messages per edge (or one msg of 3 times the size), and aggregate them differently:
         super().__init__(
@@ -119,6 +143,8 @@ class RelationalMultiAggrMP(RelationalMP):
             3 * msg_dim,
             num_edge_types,
             message_function_depth,
+            task_embedding_provider=task_embedding_provider,
+            use_msg_film=use_msg_film,
         )
         self.partial_msg_dim = msg_dim
         self.use_pna_scalers = use_pna_scalers
@@ -209,6 +235,9 @@ class RelationalMultiHeadAttentionMP(nn.Module):
         per_head_dim: int,
         num_edge_types: int,
         message_function_depth: int = 1,
+        task_embedding_provider: Optional[TaskEmbeddingLayerProvider] = None,
+        use_msg_film: bool = False,
+        use_msg_att_film: bool = False,
     ):
         super().__init__()
         self.hidden_dim = hidden_dim
@@ -220,6 +249,8 @@ class RelationalMultiHeadAttentionMP(nn.Module):
         self.target_node_query_projs = nn.ModuleList()
         self.neighbour_node_key_projs = nn.ModuleList()
         self.query_scaling_factor = self.per_head_dim ** -0.5
+
+        self.message_film_layers = nn.ModuleList()
 
         for _ in range(num_edge_types):
             self.target_node_query_projs.append(
@@ -243,6 +274,27 @@ class RelationalMultiHeadAttentionMP(nn.Module):
                     hidden_layer_dims=[2 * hidden_dim] * (message_function_depth - 1),
                 )
             )
+            if use_msg_film:
+                assert (
+                    task_embedding_provider is not None
+                ), "A task embedding provider must be available for using message-passing FiLM layers"
+                self.message_film_layers.append(
+                    TaskEmbeddingFiLMLayer(task_embedding_provider, per_head_dim * num_heads)
+                )
+
+        if use_msg_att_film:
+            assert (
+                task_embedding_provider is not None
+            ), "A task embedding provider must be available for using FiLM on query layers."
+            self.query_node_films: Optional[nn.ModuleList] = nn.ModuleList()
+            for _ in range(num_edge_types):
+                self.query_node_films.append(
+                    TaskEmbeddingFiLMLayer(
+                        task_embedding_provider, self.num_heads * self.per_head_dim
+                    )
+                )
+        else:
+            self.query_node_films = None
 
     @property
     def message_size(self) -> int:
@@ -252,6 +304,8 @@ class RelationalMultiHeadAttentionMP(nn.Module):
         self,
         x: torch.Tensor,
         adj_lists: List[torch.Tensor],
+        node_to_task: Optional[torch.Tensor] = None,
+        edge_to_task: Optional[List[torch.Tensor]] = None,
     ):
         all_msg_list: List[torch.Tensor] = []  # all messages exchanged between nodes
         all_scores_list: List[torch.Tensor] = []  # attention scores for all messages
@@ -274,6 +328,10 @@ class RelationalMultiHeadAttentionMP(nn.Module):
             edge_queries = self.target_node_query_projs[edge_type](
                 tgt_node_reprs
             )  # [E, num_heads * head_dim]
+            if self.query_node_films is not None:
+                edge_queries = self.query_node_films[edge_type](
+                    edge_queries, task_ids=edge_to_task[edge_type]
+                )
             edge_queries = self.query_scaling_factor * edge_queries
             edge_keys = self.neighbour_node_key_projs[edge_type](
                 src_node_reprs
@@ -336,6 +394,8 @@ class GNNConfig:
     dropout_rate: float = 0.0
     use_rezero_scaling: bool = True
     make_edges_bidirectional: bool = True
+    use_msg_film: bool = False
+    use_msg_att_film: bool = False
 
 
 class GNNBlock(nn.Module):
@@ -349,7 +409,9 @@ class GNNBlock(nn.Module):
     ReZero' (with \alpha a vector instead of scalar): https://arxiv.org/pdf/2103.17239.pdf
     """
 
-    def __init__(self, config: GNNConfig):
+    def __init__(
+        self, config: GNNConfig, task_embedding_provider: Optional[TaskEmbeddingLayerProvider]
+    ):
         super().__init__()
         self.config = config
 
@@ -366,6 +428,9 @@ class GNNBlock(nn.Module):
                     per_head_dim=config.per_head_dim,
                     num_edge_types=config.num_edge_types,
                     message_function_depth=config.message_function_depth,
+                    task_embedding_provider=task_embedding_provider,
+                    use_msg_film=config.use_msg_film,
+                    use_msg_attn_film=config.use_msg_att_film,
                 )
             )
         else:
@@ -388,6 +453,8 @@ class GNNBlock(nn.Module):
                             num_edge_types=config.num_edge_types,
                             message_function_depth=config.message_function_depth,
                             use_pna_scalers=config.type.lower() == "PNA".lower(),
+                            task_embedding_provider=task_embedding_provider,
+                            use_msg_film=config.use_msg_film,
                         )
                     )
                 elif config.type.lower() == "Plain".lower():
@@ -397,6 +464,8 @@ class GNNBlock(nn.Module):
                             msg_dim=config.per_head_dim,
                             num_edge_types=config.num_edge_types,
                             message_function_depth=config.message_function_depth,
+                            task_embedding_provider=task_embedding_provider,
+                            use_msg_film=config.use_msg_film,
                         )
                     )
                 else:
@@ -429,14 +498,20 @@ class GNNBlock(nn.Module):
         self,
         node_representations,
         adj_lists,
+        node_to_task: Optional[torch.Tensor] = None,
+        edge_to_task: Optional[List[torch.Tensor]] = None,
     ):
         """
         Args:
             node_representations: float tensor of shape (num_nodes, config.hidden_dim)
             adj_lists: List of (num_edges, 2) tensors (one per edge-type)
+            node_to_task: long tensor of shape (num_nodes,)
+            edge_to_task: optional list of long tensors of shape (num_edges,), mapping each edge
+                to the task ID of the enclosing graph (one tensor per edge type)
         Returns:
             node_representations: float (num_graphs, config.hidden_dim) tensor
         """
+
         aggregated_messages = []
         for i, mp_layer in enumerate(self.mp_layers):
             sliced_node_representations = node_representations[
@@ -446,13 +521,19 @@ class GNNBlock(nn.Module):
                 mp_layer(
                     x=sliced_node_representations,
                     adj_lists=adj_lists,
+                    node_to_task=node_to_task,
+                    edge_to_task=edge_to_task,
                 )
             )
 
+        # ----- Pass through linear to get back to config.hidden_dim
         new_representations = self.msg_out_projection(torch.cat(aggregated_messages, dim=-1))
+        # ----- Pass through dropout
         new_representations = self.dropout_layer(new_representations)
+        # ----- Apply rezero scaling if required
         if self.config.use_rezero_scaling:
             new_representations = self.alpha * new_representations
+        # ----- Sum over all representations (same dimensions)
         node_representations = node_representations + new_representations
 
         if self.boom_layer is not None and self.boom_norm_layer is not None:
@@ -470,23 +551,32 @@ class GNN(nn.Module):
     def __init__(
         self,
         config: GNNConfig,
+        task_embedding_provider: Optional[TaskEmbeddingLayerProvider] = None,
     ):
         super().__init__()
         self.config = config
 
         self.gnn_blocks = nn.ModuleList()
         for _ in range(config.num_layers):
-            self.gnn_blocks.append(GNNBlock(config))
+            self.gnn_blocks.append(GNNBlock(config, task_embedding_provider))
 
-    def forward(self, node_features, adj_lists) -> List[torch.Tensor]:
+    def forward(self, node_features, adj_lists, node_to_task) -> List[torch.Tensor]:
         """
         args:
             node_representations: float tensor of shape (num_nodes, config.hidden_dim)
             adj_lists: List of (num_edges, 2) tensors (one per edge-type)
+            node_to_task: long tensor of shape (num_nodes,)
         output:
             all_node_representations: list of float32 (num_graphs, config.hidden_dim) tensors,
                 one for the result of each timestep of the GNN (and the initial one)
         """
+
+        # First check if we got what we needed:
+        if node_to_task is None and (self.config.use_msg_film or self.config.use_msg_att_film):
+            raise ValueError(
+                f"Using FiLM/task embeddings requires passing in the node_to_task map!"
+            )
+
         # We may need to introduce additional edges to make everything bidirectional:
         if self.config.make_edges_bidirectional:
             adj_lists = [
@@ -495,10 +585,15 @@ class GNN(nn.Module):
             ]
 
         # We need to make the adjacency lists appropriate tensors:
-        torch_adj_lists = []
+        # If node_to_task also exists we can use this to assign each edge
+        # to a task.
+        torch_adj_lists, edge_to_task = [], []
         for adj_list in adj_lists:
             torch_adj_list = torch.tensor(adj_list, dtype=torch.long, device=node_features.device)
             torch_adj_lists.append(torch_adj_list)
+            if node_to_task is not None:
+                # grab the task id of each of the first nodes of each edge of this type
+                edge_to_task.append(node_to_task[torch_adj_list[:, 0]])
 
         # Actually do message passing:
         cur_node_representations = node_features
@@ -507,6 +602,8 @@ class GNN(nn.Module):
             cur_node_representations = gnn_block(
                 node_representations=cur_node_representations,
                 adj_lists=torch_adj_lists,
+                node_to_task=node_to_task,
+                edge_to_task=edge_to_task,
             )
             all_node_representations.append(cur_node_representations)
 
