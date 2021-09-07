@@ -1,3 +1,7 @@
+# Do not run this when opening PRs ...
+pr: none
+
+# ... rather, just run this every time a branch is updated:
 trigger:
   branches:
     include:
