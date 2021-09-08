@@ -279,6 +279,10 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
 
         # This should be a no-op, but may be required after a re-init:
         self.to(self.device)
+        # make sure that tasks-specific components remain on the cpu
+        for submodule in self.modules():
+            if isinstance(submodule, LearnedTaskEmbeddingLayer):
+                submodule.to(torch.device("cpu"))
 
     @classmethod
     def build_from_model_file(
