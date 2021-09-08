@@ -243,6 +243,35 @@ def run_on_data_iterable(
         metric_name_prefix=metric_name_prefix,
     )
     for batch_idx, (batch, labels) in enumerate(iter(data_iterable)):
+
+        # TODO: make config return single "task_dependence" bool here
+        if (
+            model.config.task_config.use_init_film
+            or model.config.gnn_config.use_msg_film
+            or model.config.gnn_config.use_msg_att_film
+            or model.config.task_config.use_tail_task_emb
+        ):
+
+            # If we have task-specific layers at this point we want to
+            # place only the relevant subset on the GPU to avoid OOM DOOM
+
+            # (1) get ids of tasks in this batch
+            tasks_in_batch = list(set(batch.sample_to_task_id))
+            # (2) renumber the tasks, and update batch to use the renumbered ids
+            renumbering = {task_id: i for i, task_id in enumerate(tasks_in_batch)}
+            batch.sample_to_task_id = np.array(
+                [renumbering[task] for task in batch.sample_to_task_id]
+            )
+
+            # (3) move the corresponding selected task embeddings to the GPU
+            # Only the relevant task embeddings are moved to the GPU,
+            # and as such these are automatically addressed by the indices in the
+            # updated batch.sample_to_task_id
+            model.task_embedding_provider.move_subset_to_device(
+                task_subset=torch.Tensor(tasks_in_batch, device=torch.device("cpu")),
+                device=model.device,
+            )
+
         if max_num_steps is not None and batch_idx >= max_num_steps:
             break
 
