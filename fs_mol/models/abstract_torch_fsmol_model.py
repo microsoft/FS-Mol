@@ -243,6 +243,8 @@ def run_on_data_iterable(
         metric_name_prefix=metric_name_prefix,
     )
     for batch_idx, (batch, labels) in enumerate(iter(data_iterable)):
+        if max_num_steps is not None and batch_idx >= max_num_steps:
+            break
 
         # TODO: make config return single "task_dependence" bool here
         if (
@@ -268,12 +270,11 @@ def run_on_data_iterable(
             # and as such these are automatically addressed by the indices in the
             # updated batch.sample_to_task_id
             model.task_embedding_provider.move_subset_to_device(
-                task_subset=torch.Tensor(tasks_in_batch, device=torch.device("cpu")),
+                task_subset=torch.tensor(
+                    tasks_in_batch, dtype=torch.long, device=torch.device("cpu")
+                ),
                 device=model.device,
             )
-
-        if max_num_steps is not None and batch_idx >= max_num_steps:
-            break
 
         if optimizer is not None:
             optimizer.zero_grad()
@@ -325,7 +326,9 @@ def validate_on_data_iterable(
     quiet: bool = False,
 ) -> float:
     valid_loss, valid_metrics = run_on_data_iterable(
-        model, data_iterable=data_iterable, quiet=quiet
+        model,
+        data_iterable=data_iterable,
+        quiet=quiet,
     )
     if not quiet:
         logger.info(f"  Validation loss: {valid_loss:.5f}")

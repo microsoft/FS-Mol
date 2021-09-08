@@ -28,7 +28,7 @@ from fs_mol.data import (
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
+@dataclass
 class FSMolMultitaskBatch(FSMolBatch):
     sample_to_task_id: np.ndarray
 

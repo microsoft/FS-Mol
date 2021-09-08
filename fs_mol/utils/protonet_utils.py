@@ -101,6 +101,7 @@ def evaluate_protonet_model(
     query_size: Optional[int] = None,
     data_fold: DataFold = DataFold.TEST,
     save_dir: Optional[str] = None,
+    aml_run=None,
 ) -> Dict[str, List[FSMolTaskSampleEvalResults]]:
 
     batcher = get_protonet_batcher(max_num_graphs=batch_size)

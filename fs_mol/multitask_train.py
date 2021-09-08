@@ -39,6 +39,7 @@ from fs_mol.models.gnn_multitask import (
     GNNConfig,
     create_model,
 )
+from fs_mol.modules.task_specific_modules import TaskDependentConfig
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run, str2bool
 from fs_mol.utils.metrics import (
     avg_metrics_over_tasks,
@@ -196,6 +197,11 @@ def add_model_arguments(parser: argparse.ArgumentParser):
         default=False,
         help="Indicates if FiLM layers should be applied to the query projections of the nodes in message passing that uses attention.",
     )
+    parser.add_argument(
+        "--task_embedding_dim",
+        type=int,
+        help="Size of task embeddings. If unspecified, size is automatically determined by usage. If specified, appropriate projections for all usages are instantiated.",
+    )
 
 
 def make_model_from_args(
@@ -216,12 +222,15 @@ def make_model_from_args(
             use_msg_film=args.use_message_film,
             use_msg_att_film=args.use_message_attention_film,
         ),
+        task_config=TaskDependentConfig(
+            use_init_film=args.use_init_film,
+            use_tail_task_emb=args.use_tail_task_embedding,
+            task_embedding_dim=args.task_embedding_dim,
+        ),
         num_outputs=1,
         readout_type=args.readout_type,
         readout_use_only_last_timestep=not args.readout_use_all_states,
         num_tail_layers=args.num_tail_layers,
-        use_init_film=args.use_init_film,
-        use_tail_task_emb=args.use_tail_task_embedding,
     )
     model = create_model(model_config, device=device)
     return model
