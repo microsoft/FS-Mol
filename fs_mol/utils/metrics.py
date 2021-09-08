@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Dict, Tuple, List, Union
+from typing import Dict, Tuple, List
 from typing_extensions import Literal
 from dataclasses import dataclass
 
