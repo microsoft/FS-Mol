@@ -18,8 +18,9 @@ import numpy as np
 from fs_mol.data.fsmol_dataset import NUM_EDGE_TYPES
 from fs_mol.data.fsmol_task import MoleculeDatapoint
 
-
-@dataclass(frozen=True)
+# TODO: if we need this to remain frozen, change molfilm reassignment in abstract_torch_fsmol_model/Ln(262)
+# or copy batch into non-frozen version for each batch.
+@dataclass
 class FSMolBatch:
     """General data structure for holding information about graph-featurized molecules in a
     batch. Note that batches of unequally sized graphs are formed from multiple graphs by

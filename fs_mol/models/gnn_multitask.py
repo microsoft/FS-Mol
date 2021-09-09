@@ -16,6 +16,8 @@ from fs_mol.modules.graph_readout import (
 )
 from fs_mol.modules.mlp import MLP
 from fs_mol.modules.task_specific_modules import (
+    LearnedTaskEmbeddingLayer,
+    TaskDependentConfig,
     ProjectedTaskEmbeddingLayerProvider,
     TaskEmbeddingFiLMLayer,
     LearnedTaskEmbeddingLayerProvider,
@@ -29,6 +31,7 @@ logger = logging.getLogger(__name__)
 class GNNMultitaskConfig:
     num_tasks: int
     gnn_config: GNNConfig
+    task_config: TaskDependentConfig = TaskDependentConfig()
     node_feature_dim: int = 32
     num_outputs: int = 1
     readout_type: str = "sum"
@@ -37,9 +40,6 @@ class GNNMultitaskConfig:
     readout_num_heads: int = 12
     readout_head_dim: int = 64
     num_tail_layers: int = 1
-    use_init_film: bool = False
-    use_tail_task_emb: bool = False
-    task_embedding_dim: Optional[int] = None
 
 
 class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
@@ -63,7 +63,7 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
 
         # Set up FiLM layer providers:
         # (providers act to manufacture layers)
-        if config.task_embedding_dim is None:
+        if config.task_config.task_embedding_dim is None:
             self.task_embedding_provider = LearnedTaskEmbeddingLayerProvider(
                 num_tasks=config.num_tasks
             )
@@ -73,7 +73,7 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
             )
 
         # Initial FiLM layer if called for:
-        if config.use_init_film:
+        if config.task_config.use_init_film:
             self.init_node_film_layer: Optional[nn.Module] = TaskEmbeddingFiLMLayer(
                 self.task_embedding_provider, config.gnn_config.hidden_dim
             )
@@ -116,7 +116,7 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
 
         # Option to concatenate the embedding of the tasks to the mol representations
         # prior to passing through the tail mlp.
-        if config.use_tail_task_emb:
+        if config.task_config.use_tail_task_emb:
             self.tail_task_embedding: Optional[
                 nn.Module
             ] = self.task_embedding_provider.get_task_embedding_layer(
@@ -160,10 +160,10 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
         # First check if we got what we needed if task-embeddings are to be used:
         if batch.sample_to_task_id is None:
             if (
-                self.config.use_init_film
+                self.config.task_config.use_init_film
                 or self.config.gnn_config.use_msg_film
                 or self.config.gnn_config.use_msg_att_film
-                or self.config.use_tail_task_emb
+                or self.config.task_config.use_tail_task_emb
             ):
                 raise ValueError(
                     f"Using FiLM/task embeddings requires the batch has a sample_to_task_id map!"
@@ -279,6 +279,10 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
 
         # This should be a no-op, but may be required after a re-init:
         self.to(self.device)
+        # make sure that tasks-specific components remain on the cpu
+        for submodule in self.modules():
+            if isinstance(submodule, LearnedTaskEmbeddingLayer):
+                submodule.to(torch.device("cpu"))
 
     @classmethod
     def build_from_model_file(
@@ -313,4 +317,9 @@ def create_model(
     model = GNNMultitaskModel(config)
     if device is not None:
         model = model.to(device)
+        # required hack for dealing with extra memory required for task
+        # embedding layers -- place anything related on to the cpu for now
+        for submodule in model.modules():
+            if isinstance(submodule, LearnedTaskEmbeddingLayer):
+                submodule.to(torch.device("cpu"))
     return model

@@ -560,7 +560,9 @@ class GNN(nn.Module):
         for _ in range(config.num_layers):
             self.gnn_blocks.append(GNNBlock(config, task_embedding_provider))
 
-    def forward(self, node_features, adj_lists, node_to_task) -> List[torch.Tensor]:
+    def forward(
+        self, node_features, adj_lists, node_to_task: Optional[torch.Tensor] = None
+    ) -> List[torch.Tensor]:
         """
         args:
             node_representations: float tensor of shape (num_nodes, config.hidden_dim)
@@ -594,6 +596,8 @@ class GNN(nn.Module):
             if node_to_task is not None:
                 # grab the task id of each of the first nodes of each edge of this type
                 edge_to_task.append(node_to_task[torch_adj_list[:, 0]])
+            else:
+                edge_to_task = None
 
         # Actually do message passing:
         cur_node_representations = node_features

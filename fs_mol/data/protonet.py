@@ -22,7 +22,7 @@ from fs_mol.data import (
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
+@dataclass
 class MoleculeProtoNetFeatures(FSMolBatch):
     fingerprints: np.ndarray  # [num_samples, FP_DIM]
     descriptors: np.ndarray  # [num_samples, DESC_DIM]

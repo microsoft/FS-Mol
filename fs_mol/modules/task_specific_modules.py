@@ -17,6 +17,7 @@
 # embeddings are not learnable, but produced by another subnetwork.
 
 import math
+from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
@@ -26,6 +27,13 @@ from torch import nn
 """
 Task embedding layers
 """
+
+
+@dataclass
+class TaskDependentConfig:
+    use_init_film: bool = False
+    use_tail_task_emb: bool = False
+    task_embedding_dim: Optional[int] = None
 
 
 class TaskEmbeddingLayer(nn.Module, ABC):
@@ -91,6 +99,18 @@ class TaskEmbeddingLayer(nn.Module, ABC):
         """
         pass
 
+    @abstractmethod
+    def move_subset_to_device(self, task_subset: torch.Tensor, device: torch.device) -> None:
+        """Create a subset of the task embeddings on a specific device. If present, this
+        will then be used by the .embed() method.
+        Used to work with large task numbers, which wouldn't all fit onto the GPU.
+
+        Args:
+            task_subset: int [T] tensor of task IDs
+            device: target device to place the subset on.
+        """
+        pass
+
 
 class LearnedTaskEmbeddingLayer(TaskEmbeddingLayer):
     """Class that can map task IDs to a vector representation obtained from a standard
@@ -101,6 +121,7 @@ class LearnedTaskEmbeddingLayer(TaskEmbeddingLayer):
         """See superclass."""
         super().__init__(*args, **kwargs)
         self.task_emb = self.__get_embedding()
+        self.task_emb_subset: Optional[torch.Tensor] = None
 
     def __get_embedding(self) -> nn.Embedding:
         """Get a fresh embedding for the tasks.
@@ -120,13 +141,22 @@ class LearnedTaskEmbeddingLayer(TaskEmbeddingLayer):
 
     def embed(self, task_ids: torch.Tensor) -> torch.Tensor:
         """See superclass."""
-        return self.task_emb(task_ids)
+        if self.task_emb_subset is None:
+            return self.task_emb(task_ids)
+        else:
+            return self.task_emb_subset[task_ids]
 
     def reinitialize_task_parameters(self, new_num_tasks: Optional[int] = None) -> None:
         """See superclass."""
         if new_num_tasks is not None:
             self.num_tasks = new_num_tasks
         self.task_emb = self.__get_embedding()
+        # default is no subset to move to device
+        self.task_emb_subset = None
+
+    def move_subset_to_device(self, task_subset: torch.Tensor, device: torch.device):
+        """See superclass."""
+        self.task_emb_subset = self.task_emb(task_subset).to(device)
 
 
 class ProjectedTaskEmbeddingLayer(TaskEmbeddingLayer):
@@ -169,6 +199,12 @@ class ProjectedTaskEmbeddingLayer(TaskEmbeddingLayer):
         if self.target_mean:
             task_embeddings += self.target_mean
         return task_embeddings
+
+    def move_subset_to_device(self, task_subset: torch.Tensor, device: torch.device):
+        """See superclass."""
+        self.projected_task_embeddings_subset = self.projected_task_embeddings[task_subset].to(
+            device
+        )
 
 
 # --------------------------------defining Linear layers for task embeddings----------------------------------------------
@@ -378,6 +414,19 @@ class TaskEmbeddingLayerProvider(nn.Module, ABC):
             self.num_tasks = new_num_tasks
         for task_emb_layer in self.provided_task_specific_layers:
             task_emb_layer.reinitialize_task_parameters(self.num_tasks)
+
+    def move_subset_to_device(self, task_subset: torch.Tensor, device: torch.device) -> None:
+        """Create a subset of the task embeddings on a specific device. If present, this
+        will then be used by the .embed() method.
+        Used to work with large task numbers, which wouldn't all fit onto the GPU.
+
+        Args:
+            task_subset: int [T] tensor of task IDs
+            device: target device to place the subset on.
+        """
+        for task_emb_layer in self.provided_task_specific_layers:
+            if isinstance(task_emb_layer, TaskEmbeddingLayer):
+                task_emb_layer.move_subset_to_device(task_subset, device)
 
 
 class LearnedTaskEmbeddingLayerProvider(TaskEmbeddingLayerProvider):
