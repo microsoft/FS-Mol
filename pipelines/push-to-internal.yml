@@ -13,6 +13,8 @@ pool:
 steps:
 - script: |
     BRANCH_NAME=`echo $BUILD_SOURCEBRANCH | sed -e 's!^refs/heads/!!'`
+    git config user.name "ADO Pipeline"
+    git config user.email "t-mestan@microsoft.com"
     git remote add internal https://msrcambridge:$(GitHub_FSMol_Sync_PAT)@dev.azure.com/msrcambridge/GenChem/_git/FS-Mol
     git remote update
     git checkout -b ${BRANCH_NAME}/merged
