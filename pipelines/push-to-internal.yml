@@ -1,0 +1,24 @@
+# Do not run this when opening PRs ...
+pr: none
+
+# ... rather, just run this every time a branch is updated:
+trigger:
+  branches:
+    include:
+      - '*'  # Trigger on all branches
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- script: |
+    BRANCH_NAME=`echo $BUILD_SOURCEBRANCH | sed -e 's!^refs/heads/!!'`
+    git config user.name "ADO Pipeline"
+    git config user.email "t-mestan@microsoft.com"
+    git remote add internal https://msrcambridge:$(GitHub_FSMol_Sync_PAT)@dev.azure.com/msrcambridge/GenChem/_git/FS-Mol
+    git remote update
+    git checkout -b ${BRANCH_NAME}/merged
+    git reset --hard internal/main
+    git reset --hard internal/${BRANCH_NAME} || true
+    git merge origin/${BRANCH_NAME} -m "Auto-merge of github branch ${BRANCH_NAME}"
+    git push internal ${BRANCH_NAME}/merged:${BRANCH_NAME}
