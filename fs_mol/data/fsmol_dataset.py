@@ -62,7 +62,11 @@ class FSMolDataset:
         return len(self._fold_to_data_paths[fold])
 
     @staticmethod
-    def from_directory(directory: Union[str, RichPath], **kwargs) -> "FSMolDataset":
+    def from_directory(
+        directory: Union[str, RichPath],
+        task_list_file: Optional[Union[str, RichPath]] = None,
+        **kwargs,
+    ) -> "FSMolDataset":
         """Create a new FSMolDataset object from a directory containing the pre-processed
         files (*.jsonl.gz) split in to train/valid/test subdirectories.
 
@@ -75,9 +79,28 @@ class FSMolDataset:
         else:
             data_rp = directory
 
+        if task_list_file is not None:
+            if isinstance(task_list_file, str):
+                task_list_file = RichPath.create(task_list_file)
+            else:
+                task_list_file = task_list_file
+            task_list = task_list_file.read_by_file_suffix()
+        else:
+            task_list = None
+
         def get_fold_file_names(data_fold_name: str):
             fold_dir = data_rp.join(data_fold_name)
-            return fold_dir.get_filtered_files_in_dir("*.jsonl.gz")
+            if task_list is None:
+                return fold_dir.get_filtered_files_in_dir("*.jsonl.gz")
+            else:
+                return [
+                    file_name
+                    for file_name in fold_dir.get_filtered_files_in_dir("*.jsonl.gz")
+                    if any(
+                        file_name.basename() == f"{task_name}.jsonl.gz"
+                        for task_name in task_list[data_fold_name]
+                    )
+                ]
 
         return FSMolDataset(
             train_data_paths=get_fold_file_names("train"),
