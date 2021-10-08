@@ -159,7 +159,6 @@ def validate_by_finetuning_on_tasks(
         batch_size=model.config.batch_size,
         query_size=model.config.validation_query_set_size,
         data_fold=DataFold.VALIDATION,
-        aml_run=aml_run,
     )
 
     # take the dictionary of task_results and return correct mean over all tasks
