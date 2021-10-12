@@ -37,8 +37,10 @@ class PrototypicalNetwork(nn.Module):
                 config.graph_feature_extractor_config
             )
 
+        self.use_fc = self.config.used_features.endswith("+fc")
+
         # Create MLP if needed:
-        if self.config.used_features.endswith("+fc"):
+        if self.use_fc:
             # Determine dimension:
             fc_in_dim = 0
             if "gnn" in self.config.used_features:
@@ -74,6 +76,10 @@ class PrototypicalNetwork(nn.Module):
 
         support_features_flat = torch.cat(support_features, dim=1)
         query_features_flat = torch.cat(query_features, dim=1)
+
+        if self.use_fc:
+            support_features_flat = self.fc(support_features_flat)
+            query_features_flat = self.fc(query_features_flat)
 
         if self.config.distance_metric == "mahalanobis":
             class_means, class_precision_matrices = self.compute_class_means_and_precisions(

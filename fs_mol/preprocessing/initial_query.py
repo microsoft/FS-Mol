@@ -1,175 +1,168 @@
 """
-Script to featurize ChEMBL assays.
+Query to make list of assays meeting a set of criteria prior to full query
 
-Each assay should consist of a separate csv file with fields for the smiles, molecule id,
-assay id and binary activity label.
-
-Expected csv fields are given in CHEMBL_CSV_FORMAT
-
-This also requires a metadata.pkl.gz with molecule featurizers
-to allow graph featurization with pre-specified feature set.
-
-train-test-splits are not performed within individual assays.
-
+In this case, the query looks for assays that have more than 32 datapoints.
 """
+
 import os
+import sys
+import csv
+import json
 import logging
+from pathlib import Path
+from typing import Tuple, Dict, Any
+import mysql.connector
+from mysql.connector import Error
+
 import pandas as pd
-from glob import glob
-from typing import List
 
-from dpu_utils.utils import run_and_debug, RichPath
+from pyreporoot import project_root
 
-from preprocessing.featurisers.featurise_utils import (
-    get_featurizing_argparser,
-    load_csv_assay_data,
-    featurise_smiles_datapoints,
-)
-from preprocessing.utils.save_utils import (
-    save_assay_data,
-    save_metadata,
-)
+sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
 
-
-logging.basicConfig(filename="featurisation.log", format="%(asctime)s %(message)s", filemode="w")
+from fs_mol.preprocessing.utils.db_utils import read_db_config
 
 logger = logging.getLogger(__name__)
 
-# these features are in common across all ChEMBL assays from
-# the original query
-CHEMBL_CSV_FORMAT = {
-    "SMILES": "smiles",
-    "Property": "activity",
-    "Assay_ID": "chembl_id",
-    "RegressionProperty": "standard_value",
-    "LogRegressionProperty": "log_standard_value",
-    "Relation": "standard_relation",
-    "AssayType": "assay_type",
-}
+
+def query_db(cursor, c_score):
+    query = (
+        "SELECT assays.chembl_id, assays.assay_type, counts.mol_num, assays.confidence_score"
+        " FROM "
+        "(SELECT acts.assay_id, count(acts.assay_id) AS mol_num "
+        "  FROM activities acts GROUP BY acts.assay_id having mol_num > 32"
+        ") AS counts "
+        " JOIN assays ON counts.assay_id = assays.assay_id "
+        f"WHERE assays.confidence_score = '{c_score}';"
+    )
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    return rows
 
 
-def get_filenames(input_dir: str) -> List[str]:
+def get_confidence_scores(cursor, output_dir: str) -> Tuple[str, str]:
+    """
+    With an open database cursor, query for the meanings of the
+    confidence scores and save out to a csv.
+    """
+    query = "select csl.confidence_score, csl.description " "from confidence_score_lookup as csl;"
+    cursor.execute(query)
+    score_rows = cursor.fetchall()
+    print(score_rows)
+    with open(os.path.join(output_dir, "confidence_scores.csv"), "w") as f:
+        writer = csv.DictWriter(f, fieldnames=["confidence_score", "description"])
+        writer.writeheader()
+    with open(os.path.join(output_dir, "confidence_scores.csv"), "a") as f:
+        writer = csv.writer(f)
+        writer.writerows(score_rows)
 
-    return glob(input_dir + "CHEMBL*.csv", recursive=True)
+    return score_rows
 
 
-def filter_assays(summary: str, args) -> List[str]:
+def run_initial_query(
+    db_config: Dict[str, Any], base_output_dir: str, close_cursor: bool = True
+) -> str:
 
     """
-    Perform a filter on assays using the summary csv
-    that results from the cleaning steps.
+    Query to get confidence scores and all assay names for each score
+    that meet basic criteria of having more than 32 datapoints.
     """
+    conn = None
+    cursor = None
 
-    sdf = pd.read_csv(summary)
+    output_dir = os.path.join(base_output_dir, "assay_lists")
+    os.makedirs(output_dir, exist_ok=True)
+    logger.info(f"Saving assay lists to {output_dir}")
 
-    max_size = args.max_size
-    if max_size is None:
-        max_size = max(sdf["cleaned_size"])
+    assay_list = []
+    assay_list_file = os.path.join(base_output_dir, "assays.jsonl")
 
-    filter_balance = args.balance_limits
-    if filter_balance is None:
-        filter_balance = (0.0, 100.0)
+    try:
+        conn = mysql.connector.connect(**db_config)
 
-    sdf = sdf.loc[
-        (sdf["cleaned_size"] >= args.min_size)
-        & (sdf["percentage_pos"] >= min(filter_balance))
-        & (sdf["percentage_pos"] <= max(filter_balance))
-        & (sdf["cleaned_size"] <= max_size)
-    ]
+        if conn.is_connected():
+            logger.info("Connected to mysql database")
 
-    # please note this syntax breaks if pandas version < 1.2.4
-    if args.sapiens_only:
-        sdf = sdf.loc[sdf["assay_organism"].str.contains("sapiens", regex=False, na=False)]
+        # first, grab the confidence scores
+        cursor = conn.cursor()
 
-    return sdf["chembl_id"].tolist()
+        confidence_scores = get_confidence_scores(cursor, output_dir)
+
+        if cursor is not None:
+            cursor.close()
+
+        # for each confidence score, extract the set of assays with > 32 molregnos
+        cursor = conn.cursor()
+        for score in confidence_scores:
+            logger.info("Querying database for confidence score {}".format(score[0]))
+            rows = query_db(cursor, score[0])
+            filename = os.path.join(output_dir, "assays_{}.csv".format(score[0]))
+            logger.info(f"Queried, found {len(rows)}, saving data to {filename}.")
+            with open(filename, "w") as f:
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=[
+                        "chembl_id",
+                        "assay_type",
+                        "molregno_num",
+                        "confidence_score",
+                    ],
+                )
+                writer.writeheader()
+                writer = csv.writer(f)
+                writer.writerows(rows)
+
+            for row in rows:
+                assay_list.append(row[0])
+
+    except Error as e:
+        print(e)
+
+    finally:
+        if conn is not None and conn.is_connected() and close_cursor:
+            conn.close()
+            if cursor is not None:
+                cursor.close()
+
+    # write out all the chembl_ids of the assays meeting the criteria
+    logger.info(f"saving out list of assays to {assay_list_file}")
+    assay_list_dict = {"assays": assay_list}
+    with open(assay_list_file, "w") as jf:
+        json.dump(assay_list_dict, jf)
+
+    return assay_list_file
 
 
-def run(args):
-
-    # get all the relevant raw datafiles to process
-    filenames = get_filenames(args.INPUT_DIR)
-
-    # load a summary file from the output of assay cleaning.
-    summary_file = os.path.join(args.INPUT_DIR, "summary.csv")
-    # if a summary file exists, use it to select files that are large enough and
-    # pass the imbalance thresholds
-    if os.path.exists(summary_file):
-        assays_to_process = filter_assays(summary_file, args)
-        files_to_process = []
-        for f in filenames:
-            assay = os.path.basename(f).split(".")[0]
-            if assay in assays_to_process:
-                files_to_process.append(f)
-        logging.info(f"{len(files_to_process)} files passed filtering.")
-    else:
-        files_to_process = filenames
-        logging.info(f"No filtering, processing all {len(files_to_process)} files.")
-
-    # Metadata has to be loaded, as individual assay files are too small to
-    # define the full set of atoms likely to be seen
-    if args.load_metadata:
-
-        print(f"Loading metadata from dir {args.load_metadata}")
-        metapath = RichPath.create(args.load_metadata)
-        path = metapath.join("metadata.pkl.gz")
-        metadata = path.read_by_file_suffix()
-        atom_feature_extractors = metadata["feature_extractors"]
-
-    else:
-        raise ValueError(
-            "Metadata must be loaded for this processing, please supply "
-            "directory containing metadata.pkl.gz."
+def recreate_assay_list_file(base_output_dir: str, assay_list_file: str) -> None:
+    all_assays = []
+    for cs in range(0, 10):
+        assays = list(
+            pd.read_csv(os.path.join(base_output_dir, f"assays_{cs}.csv")).chembl_id.values
         )
+        all_assays.extend(assays)
+    assays = {}
+    assays["assays"] = all_assays
 
-    # featurize and save data
-    assays = set()
-    failed_assays = set()
-    featurised_data = None
-    for filename in files_to_process:
+    with open(assay_list_file, "w") as jf:
+        json.dump(assays, jf)
 
-        datapoints = load_csv_assay_data(
-            filename,
-            CHEMBL_CSV_FORMAT,
-        )
-        logger.info(f"{len(datapoints)} datapoints loaded.")
-        assays.add(datapoints[0]["Assay_ID"])
 
-        logger.info(f"Featurising data...")
-        try:
-            featurised_data = featurise_smiles_datapoints(
-                train_data=datapoints,
-                valid_data=datapoints[0],
-                test_data=datapoints[0],
-                atom_feature_extractors=atom_feature_extractors,
-                num_processes=-1,
-                include_descriptors=True,
-                include_fingerprints=True,
-            )
-            logger.info(f"Completed featurization; saving data now.")
+def run():
 
-            save_assay_data(featurised_data, assay_id=filename, output_dir=args.OUTPUT_DIR)
+    db_config = read_db_config()
+    assay_config = read_db_config(section="initialquery")
+    base_output_dir = assay_config["output_dir"]
 
-        except IndexError:
-            assay = datapoints[0]["Assay_ID"]
-            failed_assays.add(assay)
-            logger.info(f"Error in featurisation found for assay {assay}")
-            continue
+    assay_list_file = run_initial_query(db_config, base_output_dir)
 
-    # save out the metadata including now the properties/assays in this dataset
-    properties_metadata = {"property_names": list(assays)}
-    if featurised_data:
-        save_metadata(
-            featurised_data,
-            output_dir=args.OUTPUT_DIR,
-            extra_metadata=properties_metadata,
-            failed=list(failed_assays),
-        )
+    # check that the assay list file exists and is not empty
+    with open(assay_list_file, "r") as jf:
+        assays = json.load(jf)["assays"]
+
+    if len(assays) == 0:
+        logger.info("Assay list file is empty, repopulating from intermediate files.")
+        recreate_assay_list_file(base_output_dir, assay_list_file)
 
 
 if __name__ == "__main__":
-    parser = get_featurizing_argparser()
-    args = parser.parse_args()
-    # try:
-    run_and_debug(lambda: run(args), args.debug)
-    # except:
-    #     raise ValueError("This data requires metadata to be passed.")
+    run()

@@ -39,14 +39,12 @@ class MoleculeDatapoint:
     Args:
         task_name: String describing the task this datapoint is taken from.
         smiles: SMILES string describing the molecule this datapoint corresponds to.
-        adjacency_lists: Adjacency information by edge type as list of ndarrays of shape [E, 2]
-        node_features: Initial node features as ndarray of shape [V, ...]
-        edge_features: Edge features by edge type as list of ndarrays of shape [E, edge_feat_dim].
-            If not present, all edge_feat_dim=0.
+        graph: GraphData object containing information about the molecule in graph representation
+            form, according to featurization chosen in preprocessing.
         numeric_label: numerical label (e.g., activity), usually measured in the lab
         bool_label: bool classification label, usually derived from the numeric label using a
             threshold.
-        fingerprint: optional Morgan fingerprint for the molecule.
+        fingerprint: optional ECFP (Extended-Connectivity Fingerprint) for the molecule.
         descriptors: optional phys-chem descriptors for the molecule.
     """
 
@@ -85,6 +83,13 @@ class MoleculeDatapoint:
 
 @dataclass(frozen=True)
 class FSMolTask:
+    """Data structure holding information for a single task.
+
+    Args:
+        name: String describing the task's name eg. "CHEMBL1000114".
+        samples: List of MoleculeDatapoint samples associated with this task.
+    """
+
     name: str
     samples: List[MoleculeDatapoint]
 
@@ -141,6 +146,16 @@ class FSMolTask:
 
 @dataclass(frozen=True)
 class FSMolTaskSample:
+    """Data structure output of a Task Sampler.
+
+    Args:
+        name: String describing the task's name eg. "CHEMBL1000114".
+        train_samples: List of MoleculeDatapoint samples drawn as the support set.
+        valid_samples: List of MoleculeDatapoint samples drawn as the validation set.
+            This may be empty, dependent on the nature of the Task Sampler.
+        test_samples: List of MoleculeDatapoint samples drawn as the query set.
+    """
+
     name: str
     train_samples: List[MoleculeDatapoint]
     valid_samples: List[MoleculeDatapoint]

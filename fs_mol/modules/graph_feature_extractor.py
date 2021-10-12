@@ -68,7 +68,9 @@ def add_graph_feature_extractor_arguments(parser: argparse.ArgumentParser):
     )
 
 
-def make_graph_feature_extractor_config_from_args(args: argparse.Namespace, initial_node_feature_dim: int = NUM_NODE_FEATURES) -> GraphFeatureExtractorConfig:
+def make_graph_feature_extractor_config_from_args(
+    args: argparse.Namespace, initial_node_feature_dim: int = NUM_NODE_FEATURES
+) -> GraphFeatureExtractorConfig:
     return GraphFeatureExtractorConfig(
         gnn_config=make_gnn_config_from_args(args),
         initial_node_feature_dim=initial_node_feature_dim,

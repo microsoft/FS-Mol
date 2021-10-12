@@ -1,12 +1,17 @@
 import argparse
 import logging
 import os
+import sys
 import random
 import time
 from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 from dpu_utils.utils import RichPath
+
+from pyprojroot import here as project_root
+
+sys.path.insert(0, str(project_root()))
 
 from fs_mol.data.fsmol_dataset import FSMolDataset
 from fs_mol.utils.logging import set_up_logging
@@ -20,6 +25,16 @@ def add_train_cli_args(parser: argparse.ArgumentParser) -> None:
         "DATA_PATH",
         type=str,
         help="Directory containing the task data in train/valid/test subdirectories.",
+    )
+
+    parser.add_argument(
+        "--task-list-file",
+        default="fsmol-0.1.json",
+        type=lambda x: os.path.join(project_root(), "datasets", x),
+        help=(
+            "json file containing the lists of tasks to be used in training/test/valid splits."
+            " Defaults to fsmol-0.1.json in datasets/."
+        ),
     )
 
     parser.add_argument(
@@ -59,6 +74,7 @@ def set_up_train_run(
 
     fsmol_dataset = FSMolDataset.from_directory(
         directory=RichPath.create(args.DATA_PATH),
+        task_list_file=RichPath.create(args.task_list_file),
     )
 
     if args.azureml_logging:

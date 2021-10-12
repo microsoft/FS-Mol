@@ -1,19 +1,25 @@
 """
 Querying ChEMBL database for all information.
 
-Assays of interest are passed in a list/config.ini file.
+Assays of interest are passed in a .jsonl file, the default is set in config.ini.
 
 """
 
-import os
 import csv
 import logging
+import os
+import sys
+from pathlib import Path
 from typing import Dict, Any
 import mysql.connector
 from mysql.connector import Error
 
-from preprocessing.utils.db_utils import read_db_config, read_assay_list
-from preprocessing.utils.queries import (
+from pyreporoot import project_root
+
+sys.path.insert(0, str(project_root(Path(__file__), root_files="requirements.txt")))
+
+from fs_mol.preprocessing.utils.db_utils import read_db_config, read_assay_list
+from fs_mol.preprocessing.utils.queries import (
     CHEMBL_ASSAY_PROTEIN,
     DISTINCT_TABLES,
     COUNT_QUERIES,
@@ -24,7 +30,6 @@ from preprocessing.utils.queries import (
     PROTEIN_FIELDS,
     CELL_FIELDS,
 )
-from preprocessing.initial_query import run_initial_query
 
 logging.basicConfig(filename="querying.log", format="%(asctime)s %(message)s", filemode="w")
 
@@ -148,16 +153,11 @@ def run(args):
         output_dir = args.save_dir
     os.makedirs(output_dir, exist_ok=True)
 
-    assay_list = None
-    if args.run_initial_query:
-        assay_list = run_initial_query(db_config, args.save_dir, close_cursor=True)
-
-    if assay_list is None:
-        if args.assay_list_file is None:
-            assay_config = read_db_config(section="assays")
-            assay_list = read_assay_list(assay_config["assay_list_file"])
-        else:
-            assay_list = read_assay_list(args.assay_list_file)
+    if args.assay_list_file is None:
+        assay_config = read_db_config(section="assays")
+        assay_list = read_assay_list(assay_config["assay_list_file"])
+    else:
+        assay_list = read_assay_list(args.assay_list_file)
 
     conn = None
     cursor = None
@@ -205,7 +205,7 @@ def run(args):
                     summary_filenames,
                 )
             except Exception as e:
-                logger.exception(f"Cannot query for assay {assay}: {e}")
+                logger.exception(f"Unsuccessful query for for assay {assay}: {e}")
                 continue
 
     except Error as e:
@@ -231,13 +231,10 @@ if __name__ == "__main__":
         "--assay-list-file",
         type=str,
         default=None,
-        help='CSV or json file containing list of assays to query the database for under "chembl_id".',
-    )
-
-    parser.add_argument(
-        "--run-initial-query",
-        action="store_true",
-        help="Run an initial query to get assay ids, rather than passing an assay list.",
+        help=(
+            'CSV or json file containing list of assays to query the database for under "chembl_id".',
+            " Optional: config.ini can be used to take default assays.jsonl",
+        ),
     )
 
     parser.add_argument(

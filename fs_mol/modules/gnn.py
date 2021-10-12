@@ -2,7 +2,6 @@ import argparse
 from dataclasses import dataclass
 from typing import List, Optional, Union
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch_scatter import scatter_sum, scatter_log_softmax, scatter_mean, scatter_max

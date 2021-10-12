@@ -1,13 +1,17 @@
 import argparse
 import logging
 import sys
+import json
 
 import torch
 from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
-from fs_mol.modules.graph_feature_extractor import add_graph_feature_extractor_arguments, make_graph_feature_extractor_config_from_args
+from fs_mol.modules.graph_feature_extractor import (
+    add_graph_feature_extractor_arguments,
+    make_graph_feature_extractor_config_from_args,
+)
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run
 from fs_mol.utils.protonet_utils import (
     PrototypicalNetworkTrainerConfig,
@@ -50,7 +54,7 @@ def parse_command_line():
     )
     add_graph_feature_extractor_arguments(parser)
 
-    parser.add_argument("--support_set_size", type=int, default=16, help="Size of support set")
+    parser.add_argument("--support_set_size", type=int, default=64, help="Size of support set")
     parser.add_argument(
         "--query_set_size",
         type=int,
@@ -74,7 +78,27 @@ def parse_command_line():
         default=50,
         help="Number of training steps between model validations.",
     )
-    parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
+    parser.add_argument(
+        "--validation-support-set-sizes",
+        type=json.loads,
+        default=[16, 128],
+        help="JSON list selecting the number of datapoints sampled as support set data during evaluation through finetuning on the validation tasks.",
+    )
+
+    parser.add_argument(
+        "--validation-query-set-size",
+        type=int,
+        default=512,
+        help="Maximum number of datapoints sampled as query data during evaluation through finetuning on the validation tasks.",
+    )
+
+    parser.add_argument(
+        "--validation-num-samples",
+        type=int,
+        default=5,
+        help="Number of samples considered for each train set size for each validation task during evaluation through finetuning.",
+    )
+    parser.add_argument("--lr", type=float, default=0.0001, help="Learning rate")
     parser.add_argument(
         "--clip_value", type=float, default=1.0, help="Gradient norm clipping value"
     )
@@ -98,6 +122,9 @@ def make_trainer_config(args: argparse.Namespace) -> PrototypicalNetworkTrainerC
         support_set_size=args.support_set_size,
         query_set_size=args.query_set_size,
         validate_every_num_steps=args.validate_every,
+        validation_support_set_sizes=tuple(args.validation_support_set_sizes),
+        validation_query_set_size=args.validation_query_set_size,
+        validation_num_samples=args.validation_num_samples,
         num_train_steps=args.num_train_steps,
         learning_rate=args.lr,
         clip_value=args.clip_value,

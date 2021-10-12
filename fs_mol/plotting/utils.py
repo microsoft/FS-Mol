@@ -10,7 +10,18 @@ from glob import glob
 from typing import Tuple, List, Optional, Callable, Dict, Iterable, Union
 
 from pandas.core.base import DataError
-from azureml.core import Run
+
+
+TRAIN_SIZES_TO_COMPARE = [16, 32, 64, 128, 256]
+
+plt.rcParams.update(
+    {
+        "font.size": 20,
+        "text.usetex": False,
+        "font.family": "serif",
+        "font.serif": "Computer Modern Roman",
+    }
+)
 
 
 def default_taskname_extractor_fn(filename: str) -> str:
@@ -29,9 +40,9 @@ def default_taskname_extractor_fn(filename: str) -> str:
 
 
 def summarize_test_run(
-    df, grouping_column: str = "train_frac", control_col_strings: str = "num|_frac|seed"
+    df, grouping_column: str = "num_train_requested", control_col_strings: str = "num|_frac|seed"
 ) -> Tuple[int, pd.DataFrame]:
-    """Takes a csv output from running finetuning_eval.py on one test dataset,
+    """Takes a csv output from running evaluation on one test dataset,
     and summarises data; means and standard deviations across runs with the same
     value of "grouping_column" are found. Returned as collapsed summary dataframe.
 
@@ -72,9 +83,9 @@ def plot_test_run(
     task: str,
     model_name: str,
     results_df: pd.DataFrame,
+    output_dir: str,
     grouping_column: str = "num_train_requested",
     plotting_metric: str = "average_precision_score",
-    output_dir: str = "outputs",
 ) -> plt.figure:
     """Plot the summary of results for a single test run.
 
@@ -137,62 +148,6 @@ def get_csv_paths(
     return csv_summary_files
 
 
-def get_amlrun_csvs(
-    run,
-    output_dir: str = "results",
-    task_name_extraction_fn: Optional[Callable[[str], str]] = None,
-) -> List[str]:
-    """
-    Get complete paths to results csvs: each run is assumed to be for a single test task.
-    If mount_path is a valid path to a mounted drive, returns paths to csvs on mounted drive
-    If mount path is None or invalid, finds run csvs from run object, downloads to the results directory,
-    and returns full paths.
-
-    run: azureml ScriptRun object
-    output_dir: str
-    """
-
-    if task_name_extraction_fn is not None:
-        _task_name_extraction_fn = task_name_extraction_fn
-    else:
-        _task_name_extraction_fn = default_taskname_extractor_fn
-
-    run_files = run.get_file_names()
-    run_files_outputs_csvs = [
-        x for x in run_files if x.startswith("outputs") and x.endswith(".csv")
-    ]
-
-    run_csv_summary_file = []
-
-    # if there is more than one file put them into a separate directory.
-    if len(run_files_outputs_csvs) > 1:
-        for i, filename in enumerate(run_files_outputs_csvs):
-            # name for csv file without "outputs" from aml
-            basename = filename.split("/")[1]
-            task_name = _task_name_extraction_fn(basename)
-            output_path = os.path.join(output_dir, f"downloaded_{task_name}/{basename}")
-            print(f"downloading file {filename}, saving to {output_dir}.")
-            run.download_file(filename, output_file_path=output_path)
-            if i == 0:
-                df = pd.read_csv(output_path)
-            else:
-                df = pd.concat([df, pd.read_csv(output_path)], axis=0, ignore_index=True)
-        final_output_path = os.path.join(output_dir, basename)
-        df.to_csv(final_output_path, index=False, header=True)
-        run_csv_summary_file.append(final_output_path)
-    else:
-        # otherwise just download and append file name to return list
-        filename = run_files_outputs_csvs[0]
-        basename = filename.split("/")[1]
-        task_name = _task_name_extraction_fn(basename)
-        output_path = os.path.join(output_dir, basename)
-        print(f"downloading file {filename}, saving to {output_dir}.")
-        run.download_file(filename, output_file_path=output_path)
-        run_csv_summary_file.append(output_path)
-
-    return run_csv_summary_file
-
-
 def process_file(
     summary_dfs: Dict[int, pd.DataFrame],
     file: str,
@@ -202,7 +157,7 @@ def process_file(
     task_name_extraction_fn: Optional[Callable[[str], str]] = None,
     grouping_column: str = "num_train_requested",
     plot: bool = False,
-    plotting_metric: str = "roc_auc",
+    plotting_metric: str = "average_precision_score",
 ) -> Dict[int, pd.DataFrame]:
     print(f"processing {file}")
     if task_name_extraction_fn is not None:
@@ -210,23 +165,35 @@ def process_file(
     else:
         _task_name_extraction_fn = default_taskname_extractor_fn
 
+    if plot:
+        plot_dir = os.path.join(output_dir, "plot")
+        os.makedirs(plot_dir, exist_ok=True)
+
+    # summary directory for results with means across repeat sample runs
+    summary_dir = os.path.join(output_dir, "collated")
+    os.makedirs(summary_dir, exist_ok=True)
+
     df = pd.read_csv(file)
     try:
+        # take means across the same value of grouping column
         _, results_df = summarize_test_run(df, grouping_column=grouping_column)
         assay = _task_name_extraction_fn(file)
         savename = f"{model_name}_{assay}.csv"
-        results_df.to_csv(os.path.join(output_dir, savename), header=True, index=True)
+
+        # save out results with mean values
+        results_df.to_csv(os.path.join(summary_dir, savename), header=True, index=True)
         results_df.reset_index(inplace=True)
         results_df["assay"] = pd.Series([assay for x in range(len(df.index))])
 
+        # plot mean values for each fixed size of grouping column
         if plot:
             fig = plot_test_run(
                 assay,
                 model_name=model_name,
                 results_df=results_df,
-                grouping_column="num_train",  # use actual num train in contrast to grouping by "requested"
+                output_dir=plot_dir,
+                grouping_column="num_train_requested",
                 plotting_metric=plotting_metric,
-                output_dir=output_dir,
             )
             plt.close(fig)
 
@@ -252,7 +219,7 @@ def collate_experiment_results(
     y_col: str = "average_precision_score",
     task_col: str = "assay",
     task_number_prefix: str = "CHEMBL",
-    num_points: List[int] = [16, 32, 64, 128, 256],
+    support_set_size: List[int] = [16, 32, 64, 128, 256],
 ) -> pd.DataFrame:
 
     # method to join together all the results for a particular experiment,
@@ -266,7 +233,7 @@ def collate_experiment_results(
         "fraction_positive_test_std",
     ]
 
-    for num in num_points:
+    for num in support_set_size:
         try:
             df = pd.read_csv(os.path.join(results_dir, f"{model_name}_summary_{x_col}_{num}.csv"))
         except Exception as e:
@@ -465,7 +432,7 @@ def plot_all_assays(
                     fmt="o",
                     ms=0,
                     linestyle="-",
-                    elinewidth=0,
+                    elinewidth=0.8,
                 )
             ax.plot(
                 [x_pos.min() - 2, x_pos.max() + 2],
@@ -482,7 +449,10 @@ def plot_all_assays(
             ax.set_xticklabels(sizes_to_compare)
             ax.set_title(f"Performance on task {task}")
             if results_dir is not None:
-                plt.savefig(os.path.join(results_dir, f"{task}.png"))
+                plt.savefig(
+                    os.path.join(results_dir, f"{task}.png"),
+                    bbox_inches="tight",
+                )
             plt.show(fig)
             plt.close(fig)
         except Exception as e:
@@ -490,23 +460,10 @@ def plot_all_assays(
             continue
 
 
-def get_run_csvs_from_mountpath(mount_path: str, run: Run) -> List[str]:
-    # designed to be used when aml experiment storage is mounted.
-    if os.path.isdir(mount_path):
-        print(f"Using mount path {mount_path}.")
-        # address files using aml syntax
-        run_mnt_dir = os.path.join(mount_path, f"dcid.{run._run_id}")
-        try:
-            csv_files = glob(os.path.join(run_mnt_dir, f"outputs/*.csv"))
-        except Exception as e:
-            print(f"Run {run._run_id} directory not found in mount {mount_path}." f" {e}")
-        return csv_files
-
-    raise ValueError(f"{mount_path} is not a directory, cannot read CSVs from here")
-
-
 def load_model_results(
-    file: str, model_label: str, TRAIN_SIZES_TO_COMPARE: List[int] = [16, 32, 64, 128, 256]
+    file: str,
+    model_label: str,
+    train_sizes: List[int] = TRAIN_SIZES_TO_COMPARE,
 ) -> pd.DataFrame:
     df = pd.read_csv(file)
 
@@ -514,7 +471,7 @@ def load_model_results(
     columns_to_keep = ["TASK_ID", "fraction_positive_train", "fraction_positive_test"]
     if "EC_super_class" in df.columns:
         columns_to_keep.append("EC_super_class")
-    columns_to_keep.extend(f"{train_size}_train" for train_size in TRAIN_SIZES_TO_COMPARE)
+    columns_to_keep.extend(f"{train_size}_train" for train_size in train_sizes)
     todrop = list(set(df.columns) - set(columns_to_keep))
     df.drop(columns=todrop, inplace=True)
 
@@ -524,7 +481,7 @@ def load_model_results(
     df.rename(
         columns={
             f"{train_size}_train": f"{train_size}_train ({model_label})"
-            for train_size in TRAIN_SIZES_TO_COMPARE
+            for train_size in train_sizes
         },
         inplace=True,
     )
@@ -580,14 +537,14 @@ def merge_loaded_dfs(
 
 
 def load_data(
-    model_summaries: Dict[str, str], TRAIN_SIZES_TO_COMPARE: List[int] = [16, 32, 64, 128, 256]
+    model_summaries: Dict[str, str], train_sizes: List[int] = TRAIN_SIZES_TO_COMPARE
 ) -> pd.DataFrame:
 
     # load all the data in to a list
     df_list = []
     for model_name, model_summary_path in model_summaries.items():
         print(f"Loading data for {model_name} from {model_summary_path}.")
-        df_list.append(load_model_results(model_summary_path, model_name, TRAIN_SIZES_TO_COMPARE))
+        df_list.append(load_model_results(model_summary_path, model_name, train_sizes))
 
     merged_df = merge_loaded_dfs(df_list)
 
@@ -597,11 +554,10 @@ def load_data(
 def expand_values(
     df: pd.DataFrame,
     model_summaries: Dict[str, str],
-    TRAIN_SIZES_TO_COMPARE: List[int] = [16, 32, 64, 128, 256],
 ) -> pd.DataFrame:
 
     all_df = df.copy()
-    for num_samples in [16, 32, 64, 128, 256]:
+    for num_samples in TRAIN_SIZES_TO_COMPARE:
         for model_name in model_summaries.keys():
             all_df[f"{num_samples}_train ({model_name}) std"] = all_df.apply(
                 lambda row: get_number_from_val_plusminus_error(
@@ -616,19 +572,23 @@ def expand_values(
                 axis=1,
             )
 
-    return all_df
+    return calculate_delta_auprc(all_df, model_summaries)
 
 
-def plot_task_performances_byid(
+def plot_task_performances_by_id(
     merged_df: pd.DataFrame,
     model_summaries: Dict[str, str],
-    num_samples_choice: int,
+    support_set_size: int = 16,
     plot_output_dir: str = None,
     highlight_class: Optional[int] = None,
 ) -> None:
 
+    markers = ["s", "P", "*", "X", "^", "o", "D", "p"]
+
+    plt.rcParams.update({"font.size": 14, "text.usetex": True})
+
     frac_positives = merged_df["fraction_positive_train"]
-    _, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 6))
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 6))
     ax.flatten()
 
     frac_pos_to_auprc_ax = ax[0]
@@ -639,14 +599,19 @@ def plot_task_performances_byid(
     frac_pos_to_auprc_ax.plot(n, n, color="black")
 
     for i, model_name in enumerate(model_summaries.keys()):
-        color = plt.get_cmap("plasma").colors[i * 30]
+        color = plt.get_cmap("plasma").colors[i * 40 + 10]
         # Get AUPRC for each model, to plot against fraction of posirives
         model_auprcs = [
             get_number_from_val_plusminus_error(model_result)
-            for model_result in merged_df[f"{num_samples_choice}_train ({model_name})"].values
+            for model_result in merged_df[f"{support_set_size}_train ({model_name})"].values
         ]
         frac_pos_to_auprc_ax.scatter(
-            frac_positives, model_auprcs, s=100, marker="+", label=model_name, color=color
+            frac_positives,
+            model_auprcs,
+            s=20,
+            label=model_name,
+            color=color,
+            marker=markers[i],
         )
 
         # select section to highlight
@@ -663,7 +628,7 @@ def plot_task_performances_byid(
         model_auprc_diff_to_random = (
             merged_df.apply(
                 lambda row: get_number_from_val_plusminus_error(
-                    row[f"{num_samples_choice}_train ({model_name})"]
+                    row[f"{support_set_size}_train ({model_name})"]
                 ),
                 axis=1,
             ).fillna(0)
@@ -681,35 +646,38 @@ def plot_task_performances_byid(
             assay_id_to_improv_ax.scatter(
                 merged_df.iloc[nhdf]["TASK_ID"],
                 model_auprc_diff_to_random.iloc[nhdf],
-                s=100,
-                marker="+",
+                s=20,
+                marker=markers[i],
                 label=f"{model_name}",
                 color=color,
                 alpha=0.3,
             )
 
     frac_pos_to_auprc_ax.set_xlabel("fraction positive points")
-    frac_pos_to_auprc_ax.set_ylabel(f"Average precision with {num_samples_choice} train points")
+    frac_pos_to_auprc_ax.set_ylabel(f"Average precision with {support_set_size} train points")
     frac_pos_to_auprc_ax.legend()
     frac_pos_to_auprc_ax.set_xlim([0.29, 0.51])
-    frac_pos_to_auprc_ax.set_title(f"Class imbalance vs. AUPRC: $|T_s|$ = {num_samples_choice}")
+    frac_pos_to_auprc_ax.set_title(f"Class imbalance vs. AUPRC: $|T_s|$ = {support_set_size}")
 
     assay_id_to_improv_ax.set_xlabel("TASK ID")
-    assay_id_to_improv_ax.set_ylabel(f"AUPRC gain with {num_samples_choice} train points")
+    assay_id_to_improv_ax.set_ylabel(f"AUPRC gain with {support_set_size} train points")
     assay_id_to_improv_ax.set_ylim([-0.01, 0.42])
     assay_id_to_improv_ax.legend()
     assay_id_to_improv_ax.set_title(
-        f"AUPRC improvement over random classification: $|T_s|$ = {num_samples_choice}"
+        f"AUPRC improvement over random classification: $|T_s|$ = {support_set_size}"
     )
 
     assay_id_to_improv_ax.set_xticklabels(merged_df["TASK_ID"][0:-1:4], Rotation=90)
 
     assay_id_to_improv_ax.set_xticks(merged_df["TASK_ID"][0:-1:4])
 
+    plt.show(fig)
+    plt.close(fig)
+
     if plot_output_dir is not None:
         plt.savefig(
             os.path.join(
-                plot_output_dir, f"model_comparison_{num_samples_choice}{highlight_class_str}.png"
+                plot_output_dir, f"model_comparison_{support_set_size}{highlight_class_str}.png"
             )
         )
 
@@ -726,7 +694,7 @@ def aggregate_by_class(
     for highlight_class in classes:
 
         hdf = ecmerged[ecmerged.EC_super_class == highlight_class].index
-        aggresults = pd.DataFrame()  # TODO: store results for each class
+        aggresults = pd.DataFrame()
         aggerrors = pd.DataFrame()
 
         for model_name in model_summaries.keys():
@@ -838,7 +806,7 @@ def aggregate_by_class(
 def calculate_delta_auprc(
     df: pd.DataFrame,
     model_summaries: Dict[str, str],
-    train_samples_to_compare: List[int] = [16, 32, 64, 128, 256],
+    train_samples_to_compare: List[int] = TRAIN_SIZES_TO_COMPARE,
 ) -> pd.DataFrame:
 
     extend_df = df.copy()
@@ -851,3 +819,269 @@ def calculate_delta_auprc(
             )
 
     return extend_df
+
+
+def make_box_plot(
+    extend_df,
+    model_cols,
+    model_names,
+    support_set_size,
+    plot_output_dir: Optional[str] = None,
+    highlight_class: Optional[int] = None,
+) -> None:
+
+    light_color = plt.get_cmap("plasma").colors[170]
+    dark_color = "black"
+
+    plt.rcParams.update(
+        {
+            "font.size": 20,
+            "text.usetex": True,
+            "font.family": "serif",
+            "font.serif": "Computer Modern Roman",
+        }
+    )
+
+    plt.rc("axes", labelsize=24)  # fontsize of the x and y labels
+
+    plt.rc("legend", fontsize=22)  # fontsize of the legend
+
+    plt.rc("xtick", labelsize=22)
+    plt.rc("ytick", labelsize=22)
+
+    bp_dict = extend_df.boxplot(
+        column=model_cols,
+        grid=False,
+        fontsize=15,
+        vert=False,
+        patch_artist=True,
+        return_type="both",
+        figsize=(10, 10),
+    )
+    bp_dict.ax.set_yticklabels(model_names, fontsize=22)
+    bp_dict.ax.set_xlabel("$\Delta$ AUPRC")
+    bp_dict.ax.tick_params(axis="x", labelsize=22)
+
+    # for row_key, (ax,row) in bp_dict.iteritems():
+    for i, box in enumerate(bp_dict.lines["boxes"]):
+        box.set_facecolor(light_color)
+        box.set_edgecolor(dark_color)
+        box.set(alpha=0.8)
+    for i, box in enumerate(bp_dict.lines["fliers"]):
+        box.set_markeredgecolor(dark_color)
+    for i, box in enumerate(bp_dict.lines["whiskers"]):
+        box.set_color(dark_color)
+    for i, box in enumerate(bp_dict.lines["caps"]):
+        box.set_color(dark_color)
+    for i, box in enumerate(bp_dict.lines["medians"]):
+        box.set_color("black")
+
+    if highlight_class is not None:
+        hc = highlight_class
+    else:
+        hc = "all"
+
+    if plot_output_dir is not None:
+        plt.savefig(
+            os.path.join(plot_output_dir, f"comparison_boxplot_{support_set_size}_hc_{hc}.png"),
+            bbox_inches="tight",
+        )
+
+    plt.show(box)
+
+
+def box_plot(
+    extend_df: pd.DataFrame,
+    model_summaries: Dict[str, str],
+    support_set_size: int = 16,
+    plot_output_dir: Optional[str] = None,
+    highlight_class: Optional[int] = None,
+) -> None:
+
+    model_cols = []
+    model_names = []
+    for model_name in model_summaries.keys():
+        model_cols.append(f"{support_set_size}_train ({model_name}) val delta-auprc")
+        model_names.append(f"{model_name}")
+
+    if highlight_class is not None:
+        extend_df_highlighted = extend_df[extend_df["EC_super_class"] == highlight_class]
+        make_box_plot(
+            extend_df_highlighted,
+            model_cols,
+            model_names,
+            support_set_size,
+            plot_output_dir=plot_output_dir,
+            highlight_class=highlight_class,
+        )
+
+    make_box_plot(
+        extend_df, model_cols, model_names, support_set_size, plot_output_dir=plot_output_dir
+    )
+
+
+def get_aggregates_across_sizes(
+    df: pd.DataFrame,
+    model_summaries: Dict[str, str],
+) -> pd.DataFrame:
+
+    full_df = None
+
+    for train_size in TRAIN_SIZES_TO_COMPARE:
+
+        aggregation = aggregate_by_class(
+            df, model_summaries, classes=list(df.EC_super_class.unique()), num_samples=train_size
+        )
+
+        if full_df is None:
+
+            full_df = aggregation
+        else:
+            full_df = full_df.merge(aggregation, how="inner", on="EC_category")
+
+    full_df.set_index("EC_category", inplace=True)
+
+    return full_df
+
+
+def grab_row_values(row, model_name):
+    vals = []
+    for i, val in zip(row.index, row.values):
+        if i.endswith(f"({model_name})"):
+            vals.append(val)
+    return vals
+
+
+def grab_row_values_std(row, model_name):
+    vals = []
+    for i, val in zip(row.index, row.values):
+        if i.endswith(f"({model_name}) std"):
+            vals.append(val)
+    return vals
+
+
+def collect_model_results(
+    df: pd.DataFrame, model_summaries: Dict[str, str]
+) -> Tuple[Dict[str, pd.Series], Dict[str, pd.Series]]:
+
+    vals = {}
+    stds = {}
+
+    for model_name in model_summaries.keys():
+
+        vals[model_name] = df.apply(lambda row: grab_row_values(row, model_name), axis=1)
+        stds[model_name] = df.apply(lambda row: grab_row_values_std(row, model_name), axis=1)
+
+    return vals, stds
+
+
+def plot_by_size(
+    df: pd.DataFrame,
+    model_summaries: Dict[str, str],
+    plot_all_classes: bool = False,
+    highlight_class: Optional[int] = None,
+    plot_output_dir: Optional[str] = None,
+):
+    """
+    Plotting function to create the aggregation-by-support-set-size plot.
+
+    Args:
+        df: aggregation dataframe -- output of "get_aggregates_across_sizes"
+        function
+        model_summaries: the model summaries dictionary.
+        plot_output_dir: final directory to save plot if required.
+        plot_all_classes: if True, all line plots are broken in to EC classes
+        (not recommended for many models to compare).
+
+    """
+
+    markers = ["s", "P", "*", "X", "^", "o", "D", "p"]
+    color_set = ["red", "darkorange", "forestgreen", "blue", "darkviolet", "slategrey", "black"]
+
+    def get_style(cls, model_name):
+        if cls == "all":
+            label = model_name
+            lw = 1.3
+            ls = "-"
+            alpha = 1.0
+        else:
+            label = f"{model_name}, {cls}"
+            lw = 1.0
+            alpha = 1.0
+            ls = "dotted"
+
+        return ls, lw, label, alpha
+
+    # pull all values out of the aggregate df
+    vals, stds = collect_model_results(df, model_summaries)
+    categories = {x: i for i, x in enumerate(vals["GNN-MAML"].index)}
+    if highlight_class is not None:
+        assert (
+            str(highlight_class) in categories.keys()
+        ), f"Cannot highlight class {highlight_class}, not in dataset."
+        reduced_list = [str(highlight_class)]
+    else:
+        reduced_list = ["all"]
+        highlight_class = "all"
+    reduced = {k: categories[k] for k in reduced_list if k in categories}
+
+    if not plot_all_classes:
+        plot_dict = reduced
+    else:
+        plot_dict = categories
+
+    plt.rcParams.update(
+        {
+            "font.size": 26,
+            "text.usetex": True,
+            "font.family": "serif",
+            "font.serif": "Computer Modern Roman",
+        }
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    for j, model_name in enumerate(model_summaries.keys()):
+
+        a = vals[model_name]
+        v = stds[model_name]
+
+        for cls, i in plot_dict.items():
+            ls, lw, label, alpha = get_style(cls, model_name)
+            ax.errorbar(
+                TRAIN_SIZES_TO_COMPARE,
+                a.values[i],
+                v.values[i],
+                label=label,
+                linestyle=ls,
+                marker=markers[j],
+                ms=8,
+                color=color_set[j],
+                alpha=alpha,
+                markeredgecolor="black",
+                linewidth=lw,
+            )
+
+    ax.legend(loc="best", ncol=2)
+    ax.set_ylabel("$\Delta$ AUPRC")
+    ax.set_xlabel("$|\mathcal{T}_{u, support}|$")
+    ax.set_xticks(TRAIN_SIZES_TO_COMPARE)
+    ax.set_xticklabels(TRAIN_SIZES_TO_COMPARE)
+    ax.set_ylim([0.00, 0.40])
+    plt.grid(True, color="grey", alpha=0.3, linestyle="--")
+
+    if plot_output_dir is not None:
+        plt.savefig(
+            os.path.join(plot_output_dir, f"comparison_plot_hc_{highlight_class}.png"),
+            bbox_inches="tight",
+        )
+
+    # need to do this to get autorank to work (does not work by setting in notebook)
+    plt.rcParams.update(
+        {
+            "text.usetex": False,
+        }
+    )
+
+    plt.show(fig)
+    plt.close(fig)

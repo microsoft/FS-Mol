@@ -57,7 +57,30 @@ def compute_binary_task_metrics(predictions: List[float], labels: List[float]) -
     )
 
 
-def avg_metrics_list(results: List[BinaryEvalMetrics]) -> Dict[str, Tuple[float, float]]:
+def avg_metrics_over_tasks(
+    task_results: Dict[str, List[BinaryEvalMetrics]],
+) -> Dict[str, Tuple[float, float]]:
+    # average results over all tasks in input dictionary
+    # the average over each task is first created
+    # technically input is Dict[str, FSMolTaskSampleEvalResults], but everything
+    # not in BinaryEvalMetrics is unused here.
+    aggregated_metrics = {}
+    for (task, results) in task_results.items():
+        # this returns, for each task, a dictionary of aggregated results
+        aggregated_metrics[task] = avg_task_metrics_list(results)
+
+    # compute the mean and std across tasks by going through values (drop within task stds)
+    aggregated_over_tasks = {}
+    for metric_field in dataclasses.fields(BinaryEvalMetrics):
+        metric_values = [x.get(metric_field.name)[0] for _, x in aggregated_metrics.items()]
+        aggregated_over_tasks[metric_field.name] = (np.mean(metric_values), np.std(metric_values))
+
+    return aggregated_over_tasks
+
+
+def avg_task_metrics_list(
+    results: List[BinaryEvalMetrics],
+) -> Dict[str, Tuple[float, float]]:
     aggregated_metrics = {}
 
     # Compute mean/std:

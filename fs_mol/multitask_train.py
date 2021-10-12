@@ -1,5 +1,4 @@
 import argparse
-import itertools
 import logging
 import os
 import pdb
@@ -43,7 +42,7 @@ from fs_mol.modules.graph_feature_extractor import (
 )
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run
 from fs_mol.utils.metrics import (
-    avg_metrics_list,
+    avg_metrics_over_tasks,
     BinaryEvalMetrics,
 )
 from fs_mol.utils.test_utils import eval_model
@@ -82,8 +81,9 @@ def validate_by_finetuning_on_tasks(
                 current_model_path,
                 model_cls=GNNMultitaskModel,
                 task_sample=task_sample,
-                temp_out_folder=temp_out_folder,
-                batcher=get_multitask_inference_batcher(max_num_graphs=batch_size, device=model_device),
+                batcher=get_multitask_inference_batcher(
+                    max_num_graphs=batch_size, device=model_device
+                ),
                 learning_rate=learning_rate,
                 task_specific_learning_rate=task_specific_learning_rate,
                 metric_to_use=metric_to_use,
@@ -103,7 +103,7 @@ def validate_by_finetuning_on_tasks(
             seed=seed,
         )
 
-        mean_metrics = avg_metrics_list(list(itertools.chain(*task_to_results.values())))
+        mean_metrics = avg_metrics_over_tasks(task_to_results)
         if aml_run is not None:
             for metric_name, (metric_mean, _) in mean_metrics.items():
                 aml_run.log(f"valid_task_test_{metric_name}", float(metric_mean))
@@ -223,7 +223,7 @@ def main():
         aml_run=aml_run,
     )
 
-    train_loop(
+    _, best_model_state = train_loop(
         model=model,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
@@ -235,12 +235,13 @@ def main():
             device=device,
         ),
         valid_fn=valid_fn,
-        output_folder=out_dir,
         metric_to_use=args.metric_to_use,
         max_num_epochs=args.num_epochs,
         patience=args.patience,
         aml_run=aml_run,
     )
+
+    torch.save(best_model_state, os.path.join(out_dir, "best_model.pt"))
 
 
 if __name__ == "__main__":
