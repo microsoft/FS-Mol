@@ -44,7 +44,7 @@ class PrototypicalNetwork(nn.Module):
             # Determine dimension:
             fc_in_dim = 0
             if "gnn" in self.config.used_features:
-                fc_in_dim += self.config.graph_feature_extractor_config.readout_output_dim
+                fc_in_dim += self.config.graph_feature_extractor_config.readout_config.output_dim
             if "ecfp" in self.config.used_features:
                 fc_in_dim += FINGERPRINT_DIM
             if "pc-descs" in self.config.used_features:

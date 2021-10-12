@@ -1,3 +1,4 @@
+import argparse
 import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
@@ -10,6 +11,8 @@ from fs_mol.modules.mlp import MLP
 from fs_mol.modules.graph_feature_extractor import (
     GraphFeatureExtractor,
     GraphFeatureExtractorConfig,
+    add_graph_feature_extractor_arguments,
+    make_graph_feature_extractor_config_from_args,
 )
 
 
@@ -21,6 +24,22 @@ class GNNMultitaskConfig:
     graph_feature_extractor_config: GraphFeatureExtractorConfig
     num_tasks: int
     num_tail_layers: int = 1
+
+
+def add_gnn_multitask_model_arguments(parser: argparse.ArgumentParser):
+    add_graph_feature_extractor_arguments(parser)
+    parser.add_argument("--num_tail_layers", type=int, default=3)
+
+
+def make_gnn_multitask_model_from_args(
+    num_tasks: int, args: argparse.Namespace, device: Optional[torch.device] = None
+):
+    model_config = GNNMultitaskConfig(
+        graph_feature_extractor_config=make_graph_feature_extractor_config_from_args(args),
+        num_tasks=num_tasks,
+        num_tail_layers=args.num_tail_layers,
+    )
+    return create_model(model_config, device=device)
 
 
 class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
@@ -35,8 +54,8 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
 
     def __create_tail_MLP(self, num_tasks: int) -> MLP:
         return MLP(
-            input_dim=self.config.graph_feature_extractor_config.readout_output_dim,
-            hidden_layer_dims=[self.config.graph_feature_extractor_config.readout_output_dim]
+            input_dim=self.config.graph_feature_extractor_config.readout_config.output_dim,
+            hidden_layer_dims=[self.config.graph_feature_extractor_config.readout_config.output_dim]
             * (self.config.num_tail_layers - 1),
             out_dim=num_tasks,
         )

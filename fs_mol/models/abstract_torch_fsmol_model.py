@@ -271,7 +271,7 @@ def run_on_data_iterable(
             sample_to_task_id = batch.sample_to_task_id
         else:
             # If we don't have a sample task information, just use 0 as default task ID:
-            sample_to_task_id = defaultdict(lambda: 0)
+            sample_to_task_id = defaultdict(lambda: torch.tensor(0))
 
         # Apply sigmoid to have predictions in appropriate range for computing (scikit) scores.
         num_samples = labels.shape[0]
