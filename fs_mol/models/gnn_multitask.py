@@ -6,7 +6,11 @@ from typing import Any, Dict, Optional
 import torch
 
 from fs_mol.data.multitask import FSMolMultitaskBatch
-from fs_mol.models.abstract_torch_fsmol_model import AbstractTorchFSMolModel, ModelStateType
+from fs_mol.models.abstract_torch_fsmol_model import (
+    AbstractTorchFSMolModel,
+    ModelStateType,
+    TorchFSMolModelOutput,
+)
 from fs_mol.modules.mlp import MLP
 from fs_mol.modules.graph_feature_extractor import (
     GraphFeatureExtractor,
@@ -42,7 +46,7 @@ def make_gnn_multitask_model_from_args(
     return create_model(model_config, device=device)
 
 
-class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
+class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch, TorchFSMolModelOutput]):
     def __init__(self, config: GNNMultitaskConfig):
         super().__init__()
         self.config = config
@@ -67,7 +71,7 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
     def reinitialize_task_parameters(self, new_num_tasks: Optional[int] = None):
         self.tail_mlp = self.__create_tail_MLP(new_num_tasks or self.config.num_tasks)
 
-    def forward(self, batch: FSMolMultitaskBatch):
+    def forward(self, batch: FSMolMultitaskBatch) -> TorchFSMolModelOutput:
         """Predicts a float (unbounded), representing binding affinity for each input molecule.
 
         Args:
@@ -79,7 +83,7 @@ class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch]):
         mol_representations = self.graph_feature_extractor(batch)
         mol_predictions = self.tail_mlp(mol_representations)
         mol_predictions = torch.gather(mol_predictions, 1, batch.sample_to_task_id.unsqueeze(-1))
-        return mol_predictions
+        return TorchFSMolModelOutput(molecule_binary_label=mol_predictions)
 
     def get_model_state(self) -> Dict[str, Any]:
         return {

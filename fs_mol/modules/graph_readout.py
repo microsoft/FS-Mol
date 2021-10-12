@@ -296,7 +296,6 @@ class UnweightedGraphReadout(GraphReadout):
         return self._combination_layer(per_graph_values)  # [num_graphs, out_dim]
 
 
-
 def make_readout_model(
     readout_config: GraphReadoutConfig,
     readout_node_dim: int,

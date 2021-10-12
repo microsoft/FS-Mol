@@ -12,7 +12,12 @@ sys.path.insert(0, str(project_root()))
 sys.path.insert(0, os.path.join(str(project_root()), "third_party", "MAT", "src"))
 
 from fs_mol.data.mat import FSMolMATBatch
-from fs_mol.models.abstract_torch_fsmol_model import AbstractTorchFSMolModel, ModelStateType
+from fs_mol.models.abstract_torch_fsmol_model import (
+    AbstractTorchFSMolModel,
+    BatchOutputType,
+    ModelStateType,
+    TorchFSMolModelOutput,
+)
 
 # Assumes that MAT is in the python lib path:
 from transformer import GraphTransformer, make_model
@@ -21,12 +26,14 @@ from transformer import GraphTransformer, make_model
 logger = logging.getLogger(__name__)
 
 
-class MATModel(GraphTransformer, AbstractTorchFSMolModel[FSMolMATBatch]):
+class MATModel(GraphTransformer, AbstractTorchFSMolModel[FSMolMATBatch, BatchOutputType]):
     def forward(self, batch: FSMolMATBatch) -> Any:
         mask = torch.sum(torch.abs(batch.node_features), dim=-1) != 0
 
-        return super().forward(
-            batch.node_features, mask, batch.adjacency_matrix, batch.distance_matrix, None
+        return TorchFSMolModelOutput(
+            molecule_binary_label=super().forward(
+                batch.node_features, mask, batch.adjacency_matrix, batch.distance_matrix, None
+            )
         )
 
     def get_model_state(self) -> Dict[str, Any]:

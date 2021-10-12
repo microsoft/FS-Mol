@@ -1,6 +1,8 @@
 from collections import defaultdict
 from typing import DefaultDict, Dict, Callable
 
+import torch
+
 
 class MetricLogger:
     def __init__(
@@ -37,6 +39,8 @@ class MetricLogger:
 
     def log_metrics(self, **kwargs) -> None:
         for metric_name, metric_val in kwargs.items():
+            if isinstance(metric_val, torch.Tensor):
+                metric_val = metric_val.detach().cpu().item()
             self._metrics[metric_name] += metric_val
             self._windowed_metrics[metric_name] += metric_val
 

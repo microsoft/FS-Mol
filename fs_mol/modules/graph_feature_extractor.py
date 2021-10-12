@@ -58,7 +58,8 @@ class GraphFeatureExtractor(nn.Module):
             readout_node_dim = config.gnn_config.hidden_dim
 
         self.readout = make_readout_model(
-            self.config.readout_config, readout_node_dim,
+            self.config.readout_config,
+            readout_node_dim,
         )
 
         if self.config.output_norm == "off":
