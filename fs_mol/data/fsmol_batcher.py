@@ -72,7 +72,7 @@ def fsmol_batch_finalizer(batch_data: Dict[str, Any]) -> FSMolBatch:
         if len(adj_lists) > 0:
             adjacency_lists.append(np.concatenate(adj_lists, axis=0))
         else:
-            adjacency_lists.append(np.zeros(shape=(0, 2), dtype=np.int32))
+            adjacency_lists.append(np.zeros(shape=(0, 2), dtype=np.int64))
 
     edge_features = []
     for edge_type_idx, edge_feats in enumerate(batch_data["edge_features"]):
@@ -198,7 +198,7 @@ class FSMolBatcher(Generic[BatchFeatureType, BatchLabelType]):
             for edge_type, edge_feats in enumerate(datapoint.graph.edge_features):
                 batch_data["edge_features"][edge_type].append(edge_feats)
             batch_data["node_to_graph"].append(
-                np.full(shape=(num_nodes,), fill_value=sample_id_in_batch, dtype=np.int32)
+                np.full(shape=(num_nodes,), fill_value=sample_id_in_batch, dtype=np.int64)
             )
 
             # Label information:
@@ -214,7 +214,7 @@ class FSMolBatcher(Generic[BatchFeatureType, BatchLabelType]):
             if self._per_datapoint_callback is not None:
                 self._per_datapoint_callback(batch_data, sample_id_in_batch, datapoint)
 
-        if batch_data["num_graphs"] > 0:
+        if batch_data["num_graphs"] > 1:  # single-element batches are problematic for BatchNorm
             yield self.__finalize_batch(batch_data)
 
 

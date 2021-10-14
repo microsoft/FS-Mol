@@ -1,10 +1,83 @@
 from abc import ABC, abstractmethod
+import argparse
+from dataclasses import dataclass
+from typing_extensions import Literal
 
 import torch
 import torch.nn as nn
 from torch_scatter import scatter_softmax, scatter
 
 from fs_mol.modules.mlp import MLP
+from fs_mol.utils.cli_utils import str2bool
+
+
+@dataclass(frozen=True)
+class GraphReadoutConfig:
+    readout_type: Literal[
+        "sum",
+        "min",
+        "max",
+        "mean",
+        "weighted_sum",
+        "weighted_mean",
+        "combined",
+    ] = "combined"
+    use_all_states: bool = True
+    num_heads: int = 12
+    head_dim: int = 64
+    output_dim: int = 512
+
+
+def add_graph_readout_arguments(parser: argparse.ArgumentParser):
+    parser.add_argument(
+        "--readout_type",
+        type=str,
+        default="combined",
+        choices=[
+            "sum",
+            "min",
+            "max",
+            "mean",
+            "weighted_sum",
+            "weighted_mean",
+            "combined",
+        ],
+        help="Readout used to summarise atoms into a molecule",
+    )
+    parser.add_argument(
+        "--readout_use_all_states",
+        type=str2bool,
+        default=True,
+        help="Indicates if all intermediate GNN activations or only the final ones should be used when computing a graph-level representation.",
+    )
+    parser.add_argument(
+        "--readout_num_heads",
+        type=int,
+        default=12,
+        help="Number of heads used in the readout heads.",
+    )
+    parser.add_argument(
+        "--readout_head_dim",
+        type=int,
+        default=64,
+        help="Dimensionality of each readout head.",
+    )
+    parser.add_argument(
+        "--readout_output_dim",
+        type=int,
+        default=512,
+        help="Dimensionality of the readout result.",
+    )
+
+
+def make_graph_readout_config_from_args(args: argparse.Namespace) -> GraphReadoutConfig:
+    return GraphReadoutConfig(
+        readout_type=args.readout_type,
+        use_all_states=args.readout_use_all_states,
+        num_heads=args.readout_num_heads,
+        head_dim=args.readout_head_dim,
+        output_dim=args.readout_output_dim,
+    )
 
 
 class GraphReadout(nn.Module, ABC):
@@ -111,7 +184,7 @@ class MultiHeadWeightedGraphReadout(GraphReadout):
         out_dim: int,
         num_heads: int,
         head_dim: int,
-        weighting_type: str,
+        weighting_type: Literal["weighted_sum", "weighted_mean"],
         num_mlp_layers: int = 1,
     ):
         """
@@ -191,7 +264,7 @@ class UnweightedGraphReadout(GraphReadout):
         self,
         node_dim: int,
         out_dim: int,
-        pooling_type: str,
+        pooling_type: Literal["min", "max", "sum", "mean"],
     ):
         """
         See superclass for first few parameters.
@@ -221,3 +294,30 @@ class UnweightedGraphReadout(GraphReadout):
             reduce=self._pooling_type,
         )  # [num_graphs, self.pooling_input_dim]
         return self._combination_layer(per_graph_values)  # [num_graphs, out_dim]
+
+
+def make_readout_model(
+    readout_config: GraphReadoutConfig,
+    readout_node_dim: int,
+) -> GraphReadout:
+    if readout_config.readout_type.startswith("combined"):
+        return CombinedGraphReadout(
+            node_dim=readout_node_dim,
+            out_dim=readout_config.output_dim,
+            num_heads=readout_config.num_heads,
+            head_dim=readout_config.head_dim,
+        )
+    elif "weighted" in readout_config.readout_type:
+        return MultiHeadWeightedGraphReadout(
+            node_dim=readout_node_dim,
+            out_dim=readout_config.output_dim,
+            num_heads=readout_config.num_heads,
+            head_dim=readout_config.head_dim,
+            weighting_type=readout_config.readout_type,
+        )
+    else:
+        return UnweightedGraphReadout(
+            node_dim=readout_node_dim,
+            out_dim=readout_config.output_dim,
+            pooling_type=readout_config.readout_type,
+        )

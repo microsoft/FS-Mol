@@ -118,9 +118,9 @@ class FSMolTask:
             adjacency_lists = []
             for adj_list in graph_data["adjacency_lists"]:
                 if len(adj_list) > 0:
-                    adjacency_lists.append(np.array(adj_list, dtype=np.int32))
+                    adjacency_lists.append(np.array(adj_list, dtype=np.int64))
                 else:
-                    adjacency_lists.append(np.zeros(shape=(0, 2), dtype=np.int32))
+                    adjacency_lists.append(np.zeros(shape=(0, 2), dtype=np.int64))
 
             samples.append(
                 MoleculeDatapoint(

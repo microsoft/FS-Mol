@@ -1,13 +1,15 @@
 from dataclasses import dataclass
 from typing import List, Tuple
 from typing_extensions import Literal
+
 import torch
 import torch.nn as nn
 
-from fs_mol.data.fsmol_dataset import NUM_EDGE_TYPES, NUM_NODE_FEATURES
-from fs_mol.modules.gnn import GNN, GNNConfig
-from fs_mol.modules.graph_readout import CombinedGraphReadout
-from fs_mol.data.protonet import ProtoNetBatch, MoleculeProtoNetFeatures
+from fs_mol.modules.graph_feature_extractor import (
+    GraphFeatureExtractor,
+    GraphFeatureExtractorConfig,
+)
+from fs_mol.data.protonet import ProtoNetBatch
 
 
 FINGERPRINT_DIM = 2048
@@ -17,74 +19,22 @@ PHYS_CHEM_DESCRIPTORS_DIM = 42
 @dataclass(frozen=True)
 class PrototypicalNetworkConfig:
     # Model configuration:
-    gnn_config: GNN = GNNConfig(
-        type="PNA",
-        hidden_dim=64,
-        num_edge_types=NUM_EDGE_TYPES,
-        num_heads=2,
-        per_head_dim=32,
-        intermediate_dim=512,
-        message_function_depth=1,
-        num_layers=8,
-    )
-    gnn_feature_dim: int = 512
+    graph_feature_extractor_config: GraphFeatureExtractorConfig = GraphFeatureExtractorConfig()
     used_features: Literal[
         "gnn", "ecfp", "pc-descs", "gnn+ecfp", "ecfp+fc", "pc-descs+fc", "gnn+ecfp+pc-descs+fc"
     ] = "gnn+ecfp+fc"
     distance_metric: Literal["mahalanobis", "euclidean"] = "mahalanobis"
 
 
-class GraphFeatureExtractor(nn.Module):
-    def __init__(self, gnn_config: GNNConfig, embedding_dim: int):
-        super().__init__()
-
-        readout_node_dim = (gnn_config.num_layers + 1) * gnn_config.hidden_dim
-        self.init_node_proj = nn.Linear(
-            in_features=NUM_NODE_FEATURES,  # This is fixed in our dataset
-            out_features=gnn_config.hidden_dim,
-            bias=False,
-        )
-        self.gnn = GNN(gnn_config)
-        self.readout_layer = CombinedGraphReadout(
-            node_dim=readout_node_dim,
-            out_dim=embedding_dim,
-            num_heads=12,
-            head_dim=64,
-        )
-
-    @property
-    def device(self) -> torch.device:
-        return next(self.parameters()).device
-
-    def forward(self, input: MoleculeProtoNetFeatures) -> torch.Tensor:
-        initial_node_features = self.init_node_proj(
-            torch.tensor(input.node_features, device=self.device)
-        )
-        all_node_representations = self.gnn(initial_node_features, input.adjacency_lists)
-        readout_node_reprs = torch.cat(all_node_representations, dim=-1)
-        mol_representations = self.readout_layer(
-            node_embeddings=readout_node_reprs,
-            node_to_graph_id=torch.tensor(
-                input.node_to_graph, device=self.device, dtype=torch.long
-            ),
-            num_graphs=input.num_graphs,
-        )
-        return mol_representations
-
-
 class PrototypicalNetwork(nn.Module):
-    def __init__(
-        self,
-        config: PrototypicalNetworkConfig,
-    ):
+    def __init__(self, config: PrototypicalNetworkConfig):
         super().__init__()
         self.config = config
 
         # Create GNN if needed:
         if self.config.used_features.startswith("gnn"):
             self.graph_feature_extractor = GraphFeatureExtractor(
-                gnn_config=config.gnn_config,
-                embedding_dim=config.gnn_feature_dim,
+                config.graph_feature_extractor_config
             )
 
         self.use_fc = self.config.used_features.endswith("+fc")
@@ -94,7 +44,7 @@ class PrototypicalNetwork(nn.Module):
             # Determine dimension:
             fc_in_dim = 0
             if "gnn" in self.config.used_features:
-                fc_in_dim += self.config.gnn_feature_dim
+                fc_in_dim += self.config.graph_feature_extractor_config.readout_config.output_dim
             if "ecfp" in self.config.used_features:
                 fc_in_dim += FINGERPRINT_DIM
             if "pc-descs" in self.config.used_features:
@@ -118,31 +68,11 @@ class PrototypicalNetwork(nn.Module):
             support_features.append(self.graph_feature_extractor(input_batch.support_features))
             query_features.append(self.graph_feature_extractor(input_batch.query_features))
         if "ecfp" in self.config.used_features:
-            support_features.append(
-                torch.tensor(
-                    input_batch.support_features.fingerprints,
-                    device=self.device,
-                    dtype=torch.float32,
-                )
-            )
-            query_features.append(
-                torch.tensor(
-                    input_batch.query_features.fingerprints, device=self.device, dtype=torch.float32
-                )
-            )
+            support_features.append(input_batch.support_features.fingerprints)
+            query_features.append(input_batch.query_features.fingerprints)
         if "pc-descs" in self.config.used_features:
-            support_features.append(
-                torch.tensor(
-                    input_batch.support_features.descriptors,
-                    device=self.device,
-                    dtype=torch.float32,
-                )
-            )
-            query_features.append(
-                torch.tensor(
-                    input_batch.query_features.descriptors, device=self.device, dtype=torch.float32
-                )
-            )
+            support_features.append(input_batch.support_features.descriptors)
+            query_features.append(input_batch.query_features.descriptors)
 
         support_features_flat = torch.cat(support_features, dim=1)
         query_features_flat = torch.cat(query_features, dim=1)
@@ -153,7 +83,7 @@ class PrototypicalNetwork(nn.Module):
 
         if self.config.distance_metric == "mahalanobis":
             class_means, class_precision_matrices = self.compute_class_means_and_precisions(
-                support_features_flat, torch.tensor(input_batch.support_labels, device=self.device)
+                support_features_flat, input_batch.support_labels
             )
 
             # grabbing the number of classes and query examples for easier use later
@@ -179,7 +109,7 @@ class PrototypicalNetwork(nn.Module):
             logits = self._protonets_euclidean_classifier(
                 support_features_flat,
                 query_features_flat,
-                torch.tensor(input_batch.support_labels, device=self.device),
+                input_batch.support_labels,
             )
 
         return logits
@@ -261,9 +191,7 @@ class PrototypicalNetwork(nn.Module):
 
     @staticmethod
     def compute_loss(logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        return nn.functional.cross_entropy(
-            logits, torch.tensor(labels, dtype=torch.long, device=logits.device)
-        )
+        return nn.functional.cross_entropy(logits, labels.long())
 
     def _protonets_euclidean_classifier(
         self,

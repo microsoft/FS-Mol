@@ -1,15 +1,79 @@
+import argparse
 from dataclasses import dataclass
 from typing import List, Optional, Union
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch_scatter import scatter_sum, scatter_log_softmax, scatter_mean, scatter_max
 
+from fs_mol.data.fsmol_dataset import NUM_EDGE_TYPES
 from fs_mol.modules.mlp import MLP
 
 
 SMALL_NUMBER = 1e-7
+
+
+@dataclass
+class GNNConfig:
+    type: str = "PNA"
+    num_edge_types: int = NUM_EDGE_TYPES
+    hidden_dim: int = 128
+    num_heads: int = 4
+    per_head_dim: int = 32
+    intermediate_dim: int = 512
+    message_function_depth: int = 1
+    num_layers: int = 8
+    dropout_rate: float = 0.0
+    use_rezero_scaling: bool = True
+    make_edges_bidirectional: bool = True
+
+
+def add_gnn_model_arguments(parser: argparse.ArgumentParser):
+    parser.add_argument(
+        "--gnn_type",
+        type=str,
+        default="PNA",
+        choices=["MultiHeadAttention", "MultiAggr", "PNA", "Plain"],
+        help="Type of GNN architecture to use.",
+    )
+    parser.add_argument(
+        "--node_embed_dim", type=int, default=128, help="Size of GNN node representations."
+    )
+    parser.add_argument(
+        "--num_heads",
+        type=int,
+        default=4,
+        help="Number of heads used in each GNN message propagation step. Relevant in MultiHeadAttention.",
+    )
+    parser.add_argument(
+        "--per_head_dim",
+        type=int,
+        default=64,
+        help="Size of message representation in each attention head.",
+    )
+    parser.add_argument(
+        "--intermediate_dim",
+        type=int,
+        default=1024,
+        help="Size of intermediate representation used in BOOM layer. Set to 0 to deactivate BOOM layer.",
+    )
+    parser.add_argument("--message_function_depth", type=int, default=1)
+    parser.add_argument(
+        "--num_gnn_layers", type=int, default=10, help="Number of GNN layers to use."
+    )
+
+
+def make_gnn_config_from_args(args: argparse.Namespace) -> GNNConfig:
+    return GNNConfig(
+        type=args.gnn_type,
+        hidden_dim=args.node_embed_dim,
+        num_edge_types=NUM_EDGE_TYPES,
+        num_heads=args.num_heads,
+        per_head_dim=args.per_head_dim,
+        intermediate_dim=args.intermediate_dim,
+        message_function_depth=args.message_function_depth,
+        num_layers=args.num_gnn_layers,
+    )
 
 
 class BOOMLayer(nn.Module):
@@ -323,21 +387,6 @@ class RelationalMultiHeadAttentionMP(nn.Module):
         return aggregated_messages.view(-1, self.num_heads * self.per_head_dim)
 
 
-@dataclass
-class GNNConfig:
-    type: str = "MultiHeadAttention"
-    num_edge_types: int = 3
-    hidden_dim: int = 128
-    num_heads: int = 4
-    per_head_dim: int = 32
-    intermediate_dim: int = 512
-    message_function_depth: int = 1
-    num_layers: int = 8
-    dropout_rate: float = 0.0
-    use_rezero_scaling: bool = True
-    make_edges_bidirectional: bool = True
-
-
 class GNNBlock(nn.Module):
     """Block in a GNN, following a Transformer-like residual structure, using the "Pre-Norm" style
     and ReZero weighting using \alpha:
@@ -490,15 +539,9 @@ class GNN(nn.Module):
         # We may need to introduce additional edges to make everything bidirectional:
         if self.config.make_edges_bidirectional:
             adj_lists = [
-                np.concatenate((adj_list, np.flip(adj_list, axis=1)), axis=0)
+                torch.cat((adj_list, torch.flip(adj_list, dims=(1,))), dim=0)
                 for adj_list in adj_lists
             ]
-
-        # We need to make the adjacency lists appropriate tensors:
-        torch_adj_lists = []
-        for adj_list in adj_lists:
-            torch_adj_list = torch.tensor(adj_list, dtype=torch.long, device=node_features.device)
-            torch_adj_lists.append(torch_adj_list)
 
         # Actually do message passing:
         cur_node_representations = node_features
@@ -506,7 +549,7 @@ class GNN(nn.Module):
         for gnn_block in self.gnn_blocks:
             cur_node_representations = gnn_block(
                 node_representations=cur_node_representations,
-                adj_lists=torch_adj_lists,
+                adj_lists=adj_lists,
             )
             all_node_representations.append(cur_node_representations)
 

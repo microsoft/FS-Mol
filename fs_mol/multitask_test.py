@@ -84,7 +84,7 @@ def main():
             model_weights_file,
             model_cls=GNNMultitaskModel,
             task_sample=task_sample,
-            batcher=get_multitask_inference_batcher(max_num_graphs=args.batch_size),
+            batcher=get_multitask_inference_batcher(max_num_graphs=args.batch_size, device=device),
             learning_rate=args.learning_rate,
             task_specific_learning_rate=args.task_specific_lr,
             metric_to_use="avg_precision",

@@ -111,6 +111,12 @@ class AbstractTorchFSMolModel(Generic[BatchFeaturesType], torch.nn.Module):
         raise NotImplementedError()
 
 
+def linear_warmup(cur_step: int, warmup_steps: int = 0) -> float:
+    if cur_step >= warmup_steps:
+        return 1.0
+    return cur_step / warmup_steps
+
+
 def create_optimizer(
     model: AbstractTorchFSMolModel[BatchFeaturesType],
     lr: float = 0.001,
@@ -132,11 +138,6 @@ def create_optimizer(
             {"params": shared_parameters, "lr": lr},
         ],
     )
-
-    def linear_warmup(cur_step: int, warmup_steps: int = 0) -> float:
-        if cur_step >= warmup_steps:
-            return 1.0
-        return cur_step / warmup_steps
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(
         optimizer=opt,
@@ -207,7 +208,7 @@ def resolve_starting_model_file(
 
 def run_on_data_iterable(
     model: AbstractTorchFSMolModel[BatchFeaturesType],
-    data_iterable: Iterable[Tuple[BatchFeaturesType, np.ndarray]],
+    data_iterable: Iterable[Tuple[BatchFeaturesType, torch.Tensor]],
     optimizer: Optional[torch.optim.Optimizer] = None,
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     max_num_steps: Optional[int] = None,
@@ -253,11 +254,7 @@ def run_on_data_iterable(
         predictions = predictions.squeeze(dim=-1)
 
         # Compute loss and weigh it:
-        loss = torch.mean(
-            criterion(
-                predictions, torch.tensor(labels, device=predictions.device, dtype=torch.float)
-            )
-        )
+        loss = torch.mean(criterion(predictions, labels.float()))
         metric_logger.log_metrics(loss=loss.detach().cpu().item())
 
         # Training step:
@@ -274,15 +271,15 @@ def run_on_data_iterable(
             sample_to_task_id = batch.sample_to_task_id
         else:
             # If we don't have a sample task information, just use 0 as default task ID:
-            sample_to_task_id = defaultdict(lambda: 0)
+            sample_to_task_id = defaultdict(lambda: torch.tensor(0))
 
         # Apply sigmoid to have predictions in appropriate range for computing (scikit) scores.
         num_samples = labels.shape[0]
         predictions = torch.sigmoid(predictions).detach().cpu()
         for i in range(num_samples):
-            task_id = sample_to_task_id[i]
+            task_id = sample_to_task_id[i].item()
             per_task_preds[task_id].append(predictions[i].item())
-            per_task_labels[task_id].append(labels[i])
+            per_task_labels[task_id].append(labels[i].item())
 
     metrics = compute_metrics(per_task_preds, per_task_labels)
 
@@ -291,7 +288,7 @@ def run_on_data_iterable(
 
 def validate_on_data_iterable(
     model: AbstractTorchFSMolModel[BatchFeaturesType],
-    data_iterable: Iterable[Tuple[BatchFeaturesType, np.ndarray]],
+    data_iterable: Iterable[Tuple[BatchFeaturesType, torch.Tensor]],
     metric_to_use: MetricType = "avg_precision",
     quiet: bool = False,
 ) -> float:
@@ -312,7 +309,7 @@ def train_loop(
     model: AbstractTorchFSMolModel[BatchFeaturesType],
     optimizer: torch.optim.Optimizer,
     lr_scheduler: torch.optim.lr_scheduler._LRScheduler,
-    train_data: Iterable[Tuple[BatchFeaturesType, np.ndarray]],
+    train_data: Iterable[Tuple[BatchFeaturesType, torch.Tensor]],
     valid_fn: Callable[[AbstractTorchFSMolModel[BatchFeaturesType]], float],
     metric_to_use: MetricType = "avg_precision",
     max_num_epochs: int = 100,
@@ -373,7 +370,7 @@ def eval_model_by_finetuning_on_task(
     model_weights_file: str,
     model_cls: Type[AbstractTorchFSMolModel[BatchFeaturesType]],
     task_sample: FSMolTaskSample,
-    batcher: FSMolBatcher[BatchFeaturesType, np.ndarray],
+    batcher: FSMolBatcher[BatchFeaturesType, torch.Tensor],
     learning_rate: float,
     task_specific_learning_rate: float,
     metric_to_use: MetricType = "avg_precision",

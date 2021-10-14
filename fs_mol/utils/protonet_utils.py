@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
+from functools import partial
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -10,8 +11,9 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
-from fs_mol.data import FSMolDataset, FSMolTaskSample
-from fs_mol.data.fsmol_dataset import DataFold
+
+from fs_mol.models.abstract_torch_fsmol_model import linear_warmup
+from fs_mol.data import FSMolDataset, FSMolTaskSample, DataFold
 from fs_mol.data.protonet import (
     ProtoNetBatch,
     get_protonet_task_sample_iterable,
@@ -27,6 +29,7 @@ from fs_mol.utils.metrics import (
     avg_task_metrics_list,
 )
 from fs_mol.utils.metric_logger import MetricLogger
+from fs_mol.utils.torch_utils import torchify
 from fs_mol.utils.test_utils import eval_model, FSMolTaskSampleEvalResults
 
 
@@ -53,7 +56,7 @@ class PrototypicalNetworkTrainerConfig(PrototypicalNetworkConfig):
 def run_on_batches(
     model: PrototypicalNetwork,
     batches: List[ProtoNetBatch],
-    batch_labels: List[np.ndarray],
+    batch_labels: List[torch.Tensor],
     train: bool = False,
     tasks_per_batch: int = 1,
 ) -> Tuple[float, BinaryEvalMetrics]:
@@ -81,7 +84,7 @@ def run_on_batches(
         total_num_samples += batch_features.num_query_samples
         batch_preds = torch.nn.functional.softmax(batch_logits, dim=1).detach().cpu().numpy()
         task_preds.append(batch_preds[:, 1])
-        task_labels.append(batch_labels)
+        task_labels.append(batch_labels.detach().cpu().numpy())
 
     metrics = compute_binary_task_metrics(
         predictions=np.concatenate(task_preds, axis=0), labels=np.concatenate(task_labels, axis=0)
@@ -175,6 +178,7 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
         super().__init__(config)
         self.config = config
         self.optimizer = torch.optim.Adam(self.parameters(), config.learning_rate)
+        self.lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None
 
     def get_model_state(self) -> Dict[str, Any]:
         return {
@@ -216,6 +220,50 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
             for name, param in optimizer_weights.items():
                 self.optimizer.state_dict()[name].copy_(param)
 
+    def load_model_gnn_weights(
+        self,
+        path: str,
+        device: Optional[torch.device] = None,
+    ):
+        pretrained_state_dict = torch.load(path, map_location=device)
+
+        gnn_model_state_dict = pretrained_state_dict["model_state_dict"]
+        our_state_dict = self.state_dict()
+
+        # Load parameters (names specialised to GNNMultitask model), but also collect
+        # parameters for GNN parts / rest, so that we can create a LR warmup schedule:
+        gnn_params, other_params = [], []
+        gnn_feature_extractor_param_name = "graph_feature_extractor."
+        for our_name, our_param in our_state_dict.items():
+            if (
+                our_name.startswith(gnn_feature_extractor_param_name)
+                and "final_norm_layer" not in our_name
+            ):
+                generic_name = our_name[len(gnn_feature_extractor_param_name) :]
+                if generic_name.startswith("readout_layer."):
+                    generic_name = f"readout{generic_name[len('readout_layer'):]}"
+                our_param.copy_(gnn_model_state_dict[generic_name])
+                logger.debug(f"I: Loaded parameter {our_name} from {generic_name} in {path}.")
+                gnn_params.append(our_param)
+            else:
+                logger.debug(f"I: Not loading parameter {our_name}.")
+                other_params.append(our_param)
+
+        self.optimizer = torch.optim.Adam(
+            [
+                {"params": other_params, "lr": self.config.learning_rate},
+                {"params": gnn_params, "lr": self.config.learning_rate / 10},
+            ],
+        )
+
+        self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer=self.optimizer,
+            lr_lambda=[
+                partial(linear_warmup, warmup_steps=0),  # for all params
+                partial(linear_warmup, warmup_steps=100),  # for loaded GNN params
+            ],
+        )
+
     @classmethod
     def build_from_model_file(
         cls,
@@ -240,7 +288,7 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
         )
         return model
 
-    def train_loop(self, out_dir: str, dataset: FSMolDataset, aml_run=None):
+    def train_loop(self, out_dir: str, dataset: FSMolDataset, device: torch.device, aml_run=None):
         self.save_model(os.path.join(out_dir, "best_validation.pt"))
 
         train_task_sample_iterator = iter(
@@ -269,7 +317,8 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
             task_batch_losses: List[float] = []
             task_batch_metrics: List[BinaryEvalMetrics] = []
             for _ in range(self.config.tasks_per_batch):
-                train_task_sample = next(train_task_sample_iterator)
+                task_sample = next(train_task_sample_iterator)
+                train_task_sample = torchify(task_sample, device=device)
                 task_loss, task_metrics = run_on_batches(
                     self,
                     batches=train_task_sample.batches,
@@ -284,6 +333,8 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
             if self.config.clip_value is not None:
                 torch.nn.utils.clip_grad_norm_(self.parameters(), self.config.clip_value)
             self.optimizer.step()
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
             task_batch_mean_loss = np.mean(task_batch_losses)
             task_batch_avg_metrics = avg_task_metrics_list(task_batch_metrics)
@@ -295,7 +346,6 @@ class PrototypicalNetworkTrainer(PrototypicalNetwork):
             )
 
             if step % self.config.validate_every_num_steps == 0:
-
                 valid_metric = validate_by_finetuning_on_tasks(self, dataset, aml_run=aml_run)
 
                 if aml_run:
