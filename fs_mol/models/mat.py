@@ -14,9 +14,9 @@ sys.path.insert(0, os.path.join(str(project_root()), "third_party", "MAT", "src"
 from fs_mol.data.mat import FSMolMATBatch
 from fs_mol.models.abstract_torch_fsmol_model import (
     AbstractTorchFSMolModel,
-    BatchOutputType,
     ModelStateType,
     TorchFSMolModelOutput,
+    TorchFSMolModelLoss
 )
 
 # Assumes that MAT is in the python lib path:
@@ -26,7 +26,7 @@ from transformer import GraphTransformer, make_model
 logger = logging.getLogger(__name__)
 
 
-class MATModel(GraphTransformer, AbstractTorchFSMolModel[FSMolMATBatch, BatchOutputType]):
+class MATModel(GraphTransformer, AbstractTorchFSMolModel[FSMolMATBatch, TorchFSMolModelOutput, TorchFSMolModelLoss]):
     def forward(self, batch: FSMolMATBatch) -> Any:
         mask = torch.sum(torch.abs(batch.node_features), dim=-1) != 0
 

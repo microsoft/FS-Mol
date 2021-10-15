@@ -52,14 +52,27 @@ class TorchFSMolModelOutput:
     # Predictions for each input molecule, as a [NUM_MOLECULES, 1] float tensor
     molecule_binary_label: torch.Tensor
 
+@dataclass
+class TorchFSMolModelLoss:
+    label_loss: torch.Tensor
+
+    @property
+    def total_loss(self) -> torch.Tensor:
+        return self.label_loss
+
+    @property
+    def metrics_to_log(self) -> Dict[str, Any]:
+        return {"total_loss": self.total_loss, "label_loss": self.label_loss}
+
 
 BatchFeaturesType = TypeVar("BatchFeaturesType")
 BatchOutputType = TypeVar("BatchOutputType", bound=TorchFSMolModelOutput)
+BatchLossType = TypeVar("BatchLossType", bound=TorchFSMolModelLoss)
 MetricType = Union[BinaryMetricType, Literal["loss"]]
 ModelStateType = Dict[str, Any]
 
 
-class AbstractTorchFSMolModel(Generic[BatchFeaturesType, BatchOutputType], torch.nn.Module):
+class AbstractTorchFSMolModel(Generic[BatchFeaturesType, BatchOutputType, BatchLossType], torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.criterion = torch.nn.BCEWithLogitsLoss(reduction="none")
@@ -81,7 +94,7 @@ class AbstractTorchFSMolModel(Generic[BatchFeaturesType, BatchOutputType], torch
 
     def compute_loss(
         self, batch: BatchFeaturesType, model_output: BatchOutputType, labels: torch.Tensor
-    ) -> Dict[str, torch.Tensor]:
+    ) -> BatchLossType:
         """
         Compute loss; can be overwritten by implementor to implement extra objectives.
 
@@ -95,7 +108,7 @@ class AbstractTorchFSMolModel(Generic[BatchFeaturesType, BatchOutputType], torch
         """
         predictions = model_output.molecule_binary_label.squeeze(dim=-1)
         label_loss = torch.mean(self.criterion(predictions, labels.float()))
-        return {"label_loss": label_loss}
+        return TorchFSMolModelLoss(label_loss=label_loss)
 
     @abstractmethod
     def get_model_state(self) -> ModelStateType:
@@ -137,7 +150,7 @@ class AbstractTorchFSMolModel(Generic[BatchFeaturesType, BatchOutputType], torch
         config_overrides: Dict[str, Any] = {},
         quiet: bool = False,
         device: Optional[torch.device] = None,
-    ) -> AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType]:
+    ) -> AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType, BatchLossType]:
         """Build the model architecture based on a saved checkpoint."""
         raise NotImplementedError()
 
@@ -149,7 +162,7 @@ def linear_warmup(cur_step: int, warmup_steps: int = 0) -> float:
 
 
 def create_optimizer(
-    model: AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType],
+    model: AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType, BatchLossType],
     lr: float = 0.001,
     task_specific_lr: float = 0.005,
     warmup_steps: int = 1000,
@@ -185,7 +198,7 @@ def create_optimizer(
 
 def save_model(
     path: str,
-    model: AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType],
+    model: AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType, BatchLossType],
     optimizer: Optional[torch.optim.Optimizer] = None,
     epoch: Optional[int] = None,
 ) -> None:
@@ -200,7 +213,7 @@ def save_model(
 
 
 def load_model_weights(
-    model: AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType],
+    model: AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType, BatchLossType],
     path: str,
     load_task_specific_weights: bool,
     quiet: bool = False,
@@ -212,7 +225,7 @@ def load_model_weights(
 
 def resolve_starting_model_file(
     model_file: str,
-    model_cls: Type[AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType]],
+    model_cls: Type[AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType, BatchLossType]],
     out_dir: str,
     use_fresh_param_init: bool,
     config_overrides: Dict[str, Any] = {},
@@ -238,7 +251,7 @@ def resolve_starting_model_file(
 
 
 def run_on_data_iterable(
-    model: AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType],
+    model: AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType, BatchLossType],
     data_iterable: Iterable[Tuple[BatchFeaturesType, torch.Tensor]],
     optimizer: Optional[torch.optim.Optimizer] = None,
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
@@ -280,16 +293,12 @@ def run_on_data_iterable(
 
         predictions: BatchOutputType = model(batch)
 
-        losses = model.compute_loss(batch, predictions, labels)
-        total_loss = torch.stack(list(losses.values())).sum()
-
-        # Compute loss:
-        losses["total_loss"] = total_loss
-        metric_logger.log_metrics(**losses)
+        model_loss = model.compute_loss(batch, predictions, labels)
+        metric_logger.log_metrics(**model_loss.metrics_to_log)
 
         # Training step:
         if optimizer is not None:
-            total_loss.backward()
+            model_loss.total_loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
         if lr_scheduler is not None:
@@ -317,7 +326,7 @@ def run_on_data_iterable(
 
 
 def validate_on_data_iterable(
-    model: AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType],
+    model: AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType, BatchLossType],
     data_iterable: Iterable[Tuple[BatchFeaturesType, torch.Tensor]],
     metric_to_use: MetricType = "avg_precision",
     quiet: bool = False,
@@ -338,11 +347,11 @@ def validate_on_data_iterable(
 
 
 def train_loop(
-    model: AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType],
+    model: AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType, BatchLossType],
     optimizer: torch.optim.Optimizer,
     lr_scheduler: torch.optim.lr_scheduler._LRScheduler,
     train_data: Iterable[Tuple[BatchFeaturesType, torch.Tensor]],
-    valid_fn: Callable[[AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType]], float],
+    valid_fn: Callable[[AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType, BatchLossType]], float],
     metric_to_use: MetricType = "avg_precision",
     max_num_epochs: int = 100,
     patience: int = 5,
@@ -400,7 +409,7 @@ def train_loop(
 
 def eval_model_by_finetuning_on_task(
     model_weights_file: str,
-    model_cls: Type[AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType]],
+    model_cls: Type[AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType, BatchLossType]],
     task_sample: FSMolTaskSample,
     batcher: FSMolBatcher[BatchFeaturesType, torch.Tensor],
     learning_rate: float,
@@ -414,7 +423,7 @@ def eval_model_by_finetuning_on_task(
 ) -> BinaryEvalMetrics:
     # Build the model afresh and load the shared weights.
     model: AbstractTorchFSMolModel[
-        BatchFeaturesType, BatchOutputType
+        BatchFeaturesType, BatchOutputType, BatchLossType
     ] = model_cls.build_from_model_file(
         model_weights_file, quiet=quiet, device=device, config_overrides={"num_tasks": 1}
     )
