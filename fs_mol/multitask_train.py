@@ -13,38 +13,22 @@ from pyprojroot import here as project_root
 
 sys.path.insert(0, str(project_root()))
 
-from fs_mol.data import (
-    DataFold,
-    FSMolDataset,
-    FSMolTaskSample,
-)
-from fs_mol.data.multitask import (
-    FSMolMultitaskBatch,
-    MultitaskTaskSampleBatchIterable,
-    get_multitask_inference_batcher,
-)
+from fs_mol.data import DataFold, FSMolDataset, FSMolTaskSample
+from fs_mol.data.multitask import MultitaskTaskSampleBatchIterable, get_multitask_inference_batcher
 from fs_mol.models.abstract_torch_fsmol_model import (
-    AbstractTorchFSMolModel,
     MetricType,
     eval_model_by_finetuning_on_task,
     train_loop,
     create_optimizer,
     save_model,
 )
-from fs_mol.models.gnn_multitask import (
-    GNNMultitaskConfig,
-    GNNMultitaskModel,
-    create_model,
-)
+from fs_mol.models.gnn_multitask import GNNMultitaskConfig, GNNMultitaskModel, create_model
 from fs_mol.modules.graph_feature_extractor import (
     add_graph_feature_extractor_arguments,
     make_graph_feature_extractor_config_from_args,
 )
 from fs_mol.utils.cli_utils import add_train_cli_args, set_up_train_run
-from fs_mol.utils.metrics import (
-    avg_metrics_over_tasks,
-    BinaryEvalMetrics,
-)
+from fs_mol.utils.metrics import avg_metrics_over_tasks, BinaryEvalMetrics
 from fs_mol.utils.test_utils import eval_model
 
 
@@ -55,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 def validate_by_finetuning_on_tasks(
-    model: AbstractTorchFSMolModel[FSMolMultitaskBatch],
+    model: GNNMultitaskModel,
     dataset: FSMolDataset,
     learning_rate: float,
     task_specific_learning_rate: float,
