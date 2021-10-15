@@ -47,7 +47,9 @@ def make_gnn_multitask_model_from_args(
     return create_model(model_config, device=device)
 
 
-class GNNMultitaskModel(AbstractTorchFSMolModel[FSMolMultitaskBatch, TorchFSMolModelOutput, TorchFSMolModelLoss]):
+class GNNMultitaskModel(
+    AbstractTorchFSMolModel[FSMolMultitaskBatch, TorchFSMolModelOutput, TorchFSMolModelLoss]
+):
     def __init__(self, config: GNNMultitaskConfig):
         super().__init__()
         self.config = config

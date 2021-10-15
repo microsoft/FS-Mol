@@ -52,6 +52,7 @@ class TorchFSMolModelOutput:
     # Predictions for each input molecule, as a [NUM_MOLECULES, 1] float tensor
     molecule_binary_label: torch.Tensor
 
+
 @dataclass
 class TorchFSMolModelLoss:
     label_loss: torch.Tensor
@@ -72,7 +73,9 @@ MetricType = Union[BinaryMetricType, Literal["loss"]]
 ModelStateType = Dict[str, Any]
 
 
-class AbstractTorchFSMolModel(Generic[BatchFeaturesType, BatchOutputType, BatchLossType], torch.nn.Module):
+class AbstractTorchFSMolModel(
+    Generic[BatchFeaturesType, BatchOutputType, BatchLossType], torch.nn.Module
+):
     def __init__(self):
         super().__init__()
         self.criterion = torch.nn.BCEWithLogitsLoss(reduction="none")
@@ -351,7 +354,9 @@ def train_loop(
     optimizer: torch.optim.Optimizer,
     lr_scheduler: torch.optim.lr_scheduler._LRScheduler,
     train_data: Iterable[Tuple[BatchFeaturesType, torch.Tensor]],
-    valid_fn: Callable[[AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType, BatchLossType]], float],
+    valid_fn: Callable[
+        [AbstractTorchFSMolModel[BatchFeaturesType, BatchOutputType, BatchLossType]], float
+    ],
     metric_to_use: MetricType = "avg_precision",
     max_num_epochs: int = 100,
     patience: int = 5,
