@@ -111,7 +111,9 @@ def evaluate_protonet_model(
     def test_model_fn(
         task_sample: FSMolTaskSample, temp_out_folder: str, seed: int
     ) -> BinaryEvalMetrics:
-        pn_task_sample = task_sample_to_pn_task_sample(task_sample, batcher)
+        pn_task_sample = torchify(
+            task_sample_to_pn_task_sample(task_sample, batcher), device=model.device
+        )
 
         _, result_metrics = run_on_batches(
             model,
