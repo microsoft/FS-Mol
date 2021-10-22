@@ -6,7 +6,7 @@ channels:
   - pytorch
 dependencies:
   - python==3.7.10
-  - pip=20.1.1  # See https://github.com/Azure/MachineLearningNotebooks/issues/1110 - using this specific pip works around ruamel.yaml not found error.
+  - pip=20.1.1 # See https://github.com/Azure/MachineLearningNotebooks/issues/1110 - using this specific pip works around ruamel.yaml not found error.
   - rdkit==2020.09.1.0
   - matplotlib
   - numpy==1.19.2
@@ -30,3 +30,4 @@ dependencies:
       - torch-scatter
       - xlsxwriter
       - autorank
+      - azureml-core

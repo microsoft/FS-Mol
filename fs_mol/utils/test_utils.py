@@ -61,7 +61,7 @@ def add_eval_cli_args(parser: argparse.ArgumentParser) -> None:
     )
 
     parser.add_argument(
-        "--num-runs", type=int, default=5, help="Number of runs with different data splits to do."
+        "--num-runs", type=int, default=10, help="Number of runs with different data splits to do."
     )
 
     parser.add_argument("--seed", type=int, default=0, help="Random seed to use.")
