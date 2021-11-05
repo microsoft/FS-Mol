@@ -32,7 +32,7 @@ The code for the Molecule Attention Transformer baseline is added as a submodule
 
 ## Data
 
-The dataset is available as a download, [FS-Mol Data](somefigsharelink), split into `train`, `valid` and `test` folders. Additionally, we specify which tasks are to be used with the file `dataset/fsmol-0.1.json`, a default list of tasks for each data fold. We note that the complete dataset contains many more tasks. Should use of all possible training tasks available be desired, the file `dataset/entire_train_set.json` should be used with the training script argument `--task_list_file`. The task lists will be used to version FS-Mol in future iterations as more data becomes available via ChEMBL.
+The dataset is available as a download, [FS-Mol Data](https://figshare.com/ndownloader/files/31345321), split into `train`, `valid` and `test` folders. Additionally, we specify which tasks are to be used with the file `dataset/fsmol-0.1.json`, a default list of tasks for each data fold. We note that the complete dataset contains many more tasks. Should use of all possible training tasks available be desired, the training script argument `--task_list_file` `dataset/entire_train_set.json` should be used. The task lists will be used to version FS-Mol in future iterations as more data becomes available via ChEMBL.
 
 Tasks are stored as individual compressed [JSONLines](https://jsonlines.org/) files, with each line corresponding to the information to a single datapoint for the task.
 Each datapoint is stored as a JSON dictionary, following a fixed structure:
@@ -145,12 +145,12 @@ python fs_mol/protonet_test.py /path/to/pn-checkpoint /path/to/data
 
 ## Available Model Checkpoints
 
-We provide pre-trained models for `GNN-MAML`, `GNN-MT` and `PN`, these are downloadable from the links to [figshare](https://figshare.com/articles/dataset/FSMol_Baseline_Models/16511568).
+We provide pre-trained models for `GNN-MAML`, `GNN-MT` and `PN`, these are downloadable from the links to [figshare](https://figshare.com/account/home#/projects/125797).
 
 | Model Name | Description                                                              | Checkpoint File                                                                       |
 | ---------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| GNN-MAML   | Support set size 16. 8-layer GNN. Edge MLP message passing.              | [MAML-Support16_best_validation.pkl](https://figshare.com/ndownloader/files/30560868) |
-| GNN-MT     | 10-layer GNN. PNA message passing                                        | [Multitask_best_models](https://figshare.com/ndownloader/files/30560865)              |
+| GNN-MAML   | Support set size 16. 8-layer GNN. Edge MLP message passing.              | [MAML-Support16_best_validation.pkl](https://figshare.com/ndownloader/files/31346701) |
+| GNN-MT     | 10-layer GNN. PNA message passing                                        | [Multitask_best_models](https://figshare.com/ndownloader/files/31338334)              |
 | PN         | 10-layer GGN, PNA message passing. ECFP+GNN, Mahalonobis distance metric | [PN-Support64_best_validation.pt](https://figshare.com/ndownloader/files/31307479)    |
 
 
