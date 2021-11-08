@@ -150,7 +150,7 @@ We provide pre-trained models for `GNN-MAML`, `GNN-MT` and `PN`, these are downl
 | Model Name | Description                                                              | Checkpoint File                                                                       |
 | ---------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
 | GNN-MAML   | Support set size 16. 8-layer GNN. Edge MLP message passing.              | [MAML-Support16_best_validation.pkl](https://figshare.com/ndownloader/files/31346701) |
-| GNN-MT     | 10-layer GNN. PNA message passing                                        | [Multitask_best_models](https://figshare.com/ndownloader/files/31338334)              |
+| GNN-MT     | 10-layer GNN. PNA message passing                                        | [multitask_best_model.pt](https://figshare.com/ndownloader/files/31338334)              |
 | PN         | 10-layer GGN, PNA message passing. ECFP+GNN, Mahalonobis distance metric | [PN-Support64_best_validation.pt](https://figshare.com/ndownloader/files/31307479)    |
 
 
