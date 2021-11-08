@@ -32,7 +32,7 @@ The code for the Molecule Attention Transformer baseline is added as a submodule
 
 ## Data
 
-The dataset is available as a download, [FS-Mol Data](https://figshare.com/ndownloader/files/31345321), split into `train`, `valid` and `test` folders. Additionally, we specify which tasks are to be used with the file `dataset/fsmol-0.1.json`, a default list of tasks for each data fold. We note that the complete dataset contains many more tasks. Should use of all possible training tasks available be desired, the training script argument `--task_list_file` `dataset/entire_train_set.json` should be used. The task lists will be used to version FS-Mol in future iterations as more data becomes available via ChEMBL.
+The dataset is available as a download, [FS-Mol Data](https://figshare.com/ndownloader/files/31345321), split into `train`, `valid` and `test` folders. Additionally, we specify which tasks are to be used with the file `datasets/fsmol-0.1.json`, a default list of tasks for each data fold. We note that the complete dataset contains many more tasks. Should use of all possible training tasks available be desired, the training script argument `--task_list_file` `datasets/entire_train_set.json` should be used. The task lists will be used to version FS-Mol in future iterations as more data becomes available via ChEMBL.
 
 Tasks are stored as individual compressed [JSONLines](https://jsonlines.org/) files, with each line corresponding to the information to a single datapoint for the task.
 Each datapoint is stored as a JSON dictionary, following a fixed structure:
