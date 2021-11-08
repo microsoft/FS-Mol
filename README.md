@@ -145,7 +145,7 @@ python fs_mol/protonet_test.py /path/to/pn-checkpoint /path/to/data
 
 ## Available Model Checkpoints
 
-We provide pre-trained models for `GNN-MAML`, `GNN-MT` and `PN`, these are downloadable from the links to [figshare](https://figshare.com/account/home#/projects/125797).
+We provide pre-trained models for `GNN-MAML`, `GNN-MT` and `PN`, these are downloadable from the links to [figshare](https://figshare.com/projects/FS-Mol_Dataset_and_Models/125797).
 
 | Model Name | Description                                                              | Checkpoint File                                                                       |
 | ---------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
