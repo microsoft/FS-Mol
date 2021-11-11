@@ -31,9 +31,7 @@ def add_train_cli_args(parser: argparse.ArgumentParser) -> None:
         "--task-list-file",
         default="datasets/fsmol-0.1.json",
         type=str,
-        help=(
-            "JSON file containing the lists of tasks to be used in training/test/valid splits."
-        ),
+        help=("JSON file containing the lists of tasks to be used in training/test/valid splits."),
     )
 
     parser.add_argument(
