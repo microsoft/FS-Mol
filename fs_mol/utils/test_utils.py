@@ -44,9 +44,16 @@ def add_data_cli_args(parser: argparse.ArgumentParser) -> None:
         nargs="+",
         help=(
             "File(s) containing the test data."
-            " If this is a directory, all files in dir/test will be evaluated."
+            " If this is a directory, the --task-list-file argument will be used to determine what files to test on."
             " Otherwise, it is the data file(s) on which testing is done."
         ),
+    )
+
+    parser.add_argument(
+        "--task-list-file",
+        default="datasets/fsmol-0.1.json",
+        type=str,
+        help=("JSON file containing the lists of tasks to be used in training/test/valid splits."),
     )
 
 
@@ -88,7 +95,10 @@ def set_up_dataset(args: argparse.Namespace, **kwargs):
         assert (
             RichPath.create(args.DATA_PATH[0]).join("test").exists()
         ), "If DATA_PATH is a directory it must contain test/ sub-directory for evaluation."
-        return FSMolDataset.from_directory(args.DATA_PATH[0], **kwargs)
+
+        return FSMolDataset.from_directory(
+            args.DATA_PATH[0], task_list_file=RichPath.create(args.task_list_file), **kwargs
+        )
     else:
         return FSMolDataset(test_data_paths=[RichPath.create(p) for p in args.DATA_PATH], **kwargs)
 
