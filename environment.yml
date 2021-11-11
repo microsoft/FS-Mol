@@ -15,18 +15,18 @@ dependencies:
   - seaborn
   - tqdm
   - typing-extensions
-  - tensorflow-gpu==2.1.0
-  - pytorch=1.8.1=py3.7_cuda10.1_cudnn7.6.3_0
+  - pytorch=1.10.0=py3.7_cuda11.3_cudnn8.2.0_0
   - pip:
       - docopt
       - dpu-utils>=0.2.13
+      - tensorflow>=2.4
       - tf2-gnn~=2.12.0
       - more-itertools
       - mysql-connector-python==8.0.17
       - pyprojroot
       - py-repo-root~=1.1.1
       # torch-scatter and friends:
-      - -f https://pytorch-geometric.com/whl/torch-1.8.0+cu101.html
+      - -f https://pytorch-geometric.com/whl/torch-1.10.0+cu113.html
       - torch-scatter
       - xlsxwriter
       - autorank
