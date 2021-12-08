@@ -17,13 +17,13 @@ def maml_batch_finalizer(batch_data: Dict[str, Any]) -> Tuple[Dict[str, Any], Di
 
     batch_features = {
         "node_features": fsmol_batch.node_features,
-        "node_to_graph_map": fsmol_batch.node_to_graph,
+        "node_to_graph_map": fsmol_batch.node_to_graph.astype(np.int32),
         "num_graphs_in_batch": fsmol_batch.num_graphs,
     }
     for edge_type_idx in range(NUM_EDGE_TYPES):
         batch_features[f"adjacency_list_{edge_type_idx}"] = fsmol_batch.adjacency_lists[
             edge_type_idx
-        ]
+        ].astype(np.int32)
         batch_features[f"edge_features_{edge_type_idx}"] = fsmol_batch.edge_features[edge_type_idx]
 
     batch_labels = {
