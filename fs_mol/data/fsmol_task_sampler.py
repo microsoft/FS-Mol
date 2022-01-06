@@ -438,3 +438,71 @@ class StratifiedTaskSampler(TaskSampler):
             valid_samples=valid_samples,
             test_samples=test_samples,
         )
+
+
+class InsufficientSamplesInFoldException(SamplingException):
+    def __init__(
+        self,
+        task_name: str,
+        num_samples: int,
+        fold_name: str,
+        num_train: Optional[int] = None,
+        num_valid: Optional[int] = None,
+        num_test: Optional[int] = None,
+    ):
+        super().__init__(task_name, num_samples, num_train, num_valid, num_test)
+        self._fold_name = fold_name
+
+    def __str__(self):
+        return (
+            f"Cannot satisfy request to split dataset as the {self._fold_name} fold would be too small (wouldn't contain both true and false labels).\n"
+            f"  Task name: {self._task_name}\n"
+        )
+
+
+class FixedSplitTaskSampler(TaskSampler):
+    def __init__(
+        self,
+    ):
+        """Create a fixed split sampler object. When applied to a dataset, it simply divides samples
+        according to the label of which split they belong to (currently train/test/valid) and returns
+        the fixed FSMolTaskSample object.
+
+        Sampling can only fail if the train or test sets do not contain at least one of each class.
+        """
+
+    def sample(self, task: FSMolTask, seed: Optional[int] = 0) -> FSMolTaskSample:
+
+        samples = list(task.samples)
+        num_samples = len(samples)
+
+        train = [x for x in samples if x.split_label == 1]
+        test = [x for x in samples if x.split_label == 0]
+        valid = [x for x in samples if x.split_label == 2]
+
+        # check all folds have at least one of each example
+        num_train_pos = len([x for x in train if x.bool_label])
+        if not (num_train_pos >= 1 and num_train_pos < len(train)):
+            raise InsufficientSamplesInFoldException(
+                task.name,
+                num_samples=num_samples,
+                fold_name="train",
+            )
+
+        # check all folds have at least one of each example
+        num_test_pos = len([x for x in test if x.bool_label])
+        if not (num_test_pos >= 1 and num_test_pos < len(test)):
+            raise InsufficientSamplesInFoldException(
+                task.name,
+                num_samples=num_samples,
+                fold_name="test",
+            )
+
+        # ignore valid for now, TODO: fix
+
+        return FSMolTaskSample(
+            name=task.name,
+            train_samples=train,
+            valid_samples=valid,
+            test_samples=test,
+        )

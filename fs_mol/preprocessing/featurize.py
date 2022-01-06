@@ -51,6 +51,7 @@ CHEMBL_CSV_FORMAT = {
     "LogRegressionProperty": "log_standard_value",
     "Relation": "standard_relation",
     "AssayType": "assay_type",
+    "Split": "data_split",  # int determining which split the data point will be used in (by FixedSplitTaskSampler in fsmol_task_sampler.py)
 }
 
 
@@ -174,7 +175,7 @@ def run(args):
 if __name__ == "__main__":
     parser = get_featurizing_argparser()
     args = parser.parse_args()
-    # try:
-    run_and_debug(lambda: run(args), args.debug)
-    # except:
-    #     raise ValueError("This data requires metadata to be passed.")
+    try:
+        run_and_debug(lambda: run(args), args.debug)
+    except:
+        raise ValueError("This data requires metadata to be passed.")

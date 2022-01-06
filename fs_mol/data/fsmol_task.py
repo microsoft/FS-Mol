@@ -46,6 +46,7 @@ class MoleculeDatapoint:
             threshold.
         fingerprint: optional ECFP (Extended-Connectivity Fingerprint) for the molecule.
         descriptors: optional phys-chem descriptors for the molecule.
+        split_label: optional int label designating which split this molecule belongs to.
     """
 
     task_name: str
@@ -55,6 +56,7 @@ class MoleculeDatapoint:
     bool_label: bool
     fingerprint: Optional[np.ndarray]
     descriptors: Optional[np.ndarray]
+    split_label: int
 
     def get_fingerprint(self) -> np.ndarray:
         if self.fingerprint is not None:
@@ -138,6 +140,7 @@ class FSMolTask:
                             for edge_feats in graph_data.get("edge_features") or []
                         ],
                     ),
+                    split_label=int(raw_sample.get("Split") or "nan"),
                 )
             )
 
