@@ -61,6 +61,8 @@ def add_gnn_model_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--num_gnn_layers", type=int, default=10, help="Number of GNN layers to use."
     )
+    parser.add_argument("--skip-node-embedding", action="store_true",
+                        help="Skip learning a per-node embedding. Input dim then equals model dim.")
 
 
 def make_gnn_config_from_args(args: argparse.Namespace) -> GNNConfig:
