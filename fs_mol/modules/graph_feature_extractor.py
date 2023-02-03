@@ -23,6 +23,7 @@ class GraphFeatureExtractorConfig:
     gnn_config: GNNConfig = GNNConfig()
     readout_config: GraphReadoutConfig = GraphReadoutConfig()
     output_norm: Literal["off", "layer", "batch"] = "off"
+    skip_node_proj: bool = False
 
 
 def add_graph_feature_extractor_arguments(parser: argparse.ArgumentParser):
@@ -37,6 +38,7 @@ def make_graph_feature_extractor_config_from_args(
         initial_node_feature_dim=initial_node_feature_dim,
         gnn_config=make_gnn_config_from_args(args),
         readout_config=make_graph_readout_config_from_args(args),
+        skip_node_proj=args.skip_node_embedding,
     )
 
 
@@ -45,10 +47,13 @@ class GraphFeatureExtractor(nn.Module):
         super().__init__()
         self.config = config
 
-        # Initial (per-node) layers:
-        self.init_node_proj = nn.Linear(
-            config.initial_node_feature_dim, config.gnn_config.hidden_dim, bias=False
-        )
+        # Learn a per-node node embedding or skip this layer.
+        if config.skip_node_proj:
+            self.init_node_proj = nn.Identity(config.gnn_config.hidden_dim, config.gnn_config.hidden_dim)
+        else:
+            self.init_node_proj = nn.Linear(
+                config.initial_node_feature_dim, config.gnn_config.hidden_dim, bias=False
+            )
 
         self.gnn = GNN(self.config.gnn_config)
 
